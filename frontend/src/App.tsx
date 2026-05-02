@@ -31,7 +31,7 @@ function App() {
   const analyzeCode = async () => {
     setStatus("running");
     try {
-      const response = await axios.post("http://localhost:8000/api/v1/analyze", {
+      await axios.post("http://localhost:8000/api/v1/analyze", {
         code_content: code,
         file_path: "math_utils.py"
       });
