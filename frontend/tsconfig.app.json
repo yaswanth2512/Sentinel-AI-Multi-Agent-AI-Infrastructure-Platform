@@ -15,9 +15,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Linting — unused variable checks are enforced by ESLint, not tsc */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
