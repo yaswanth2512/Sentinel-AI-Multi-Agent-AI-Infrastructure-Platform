@@ -7,7 +7,7 @@
 
 <hr />
 
-## 📖 Overview
+##  Overview
 
 **Sentinel AI** is a production-grade multi-agent orchestration platform designed to automate test generation, adversarial testing, failure triage, and bug-filing workflows. Built with an infrastructure-first mindset, it demonstrates how Large Language Models (LLMs) can be reliably integrated into engineering pipelines with robust failure recovery, observability, and evaluation logic.
 
