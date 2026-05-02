@@ -3,6 +3,7 @@ import json
 import structlog
 import requests
 import os
+from dotenv import load_dotenv
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -15,37 +16,45 @@ from core.evaluation import ScoringFramework
 
 logger = structlog.get_logger()
 
-# TOP 1% INNOVATION: vLLM / TensorRT-LLM abstraction via OpenAI protocol
-# This proves we can easily point this to a massive 70B parameter model hosted internally at NVIDIA
+# =============================================================================
+# LLM Backend Selection (Priority: NVIDIA NIM > Local Ollama > Simulation)
+# Configure via .env file — see .env.example for instructions.
+# =============================================================================
 try:
-    # 🌟 TOP 1% INNOVATION: NVIDIA NIM (NVIDIA Inference Microservices)
-    # Allows usage of highly optimized, lightweight models like Nemotron or Llama-3.1-8B
-    nvidia_api_key = os.getenv("NVIDIA_API_KEY", "")
-    
-    if nvidia_api_key:
-        logger.info("Using NVIDIA NIM API for ultra-low latency inference")
+    nvidia_api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    ollama_model = os.getenv("OLLAMA_MODEL", "qwen2.5-coder")
+
+    if nvidia_api_key and nvidia_api_key != "YOUR_NVIDIA_NIM_API_KEY_HERE":
+        # --- NVIDIA NIM: Free API key at https://build.nvidia.com ---
+        logger.info("LLM Backend: NVIDIA NIM", model="meta/llama-3.1-8b-instruct")
         llm = ChatOpenAI(
-            model="meta/llama-3.1-8b-instruct", # Lightweight, highly powerful
+            model="meta/llama-3.1-8b-instruct",
             temperature=0.1,
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=nvidia_api_key
         )
     else:
-        # Fallback to local Ollama API
+        # --- Local Ollama: Run `ollama pull qwen2.5-coder` to enable ---
+        logger.info("LLM Backend: Local Ollama", model=ollama_model, url=ollama_base_url)
         llm = ChatOpenAI(
-            model="qwen2.5-coder",
+            model=ollama_model,
             temperature=0.1,
-            base_url="http://localhost:11434/v1", 
-            api_key="local-execution"
+            base_url=ollama_base_url,
+            api_key="local-no-auth-required"
         )
-    
-    # Initialize Open Source HuggingFace Embeddings for RAG
+
+    # HuggingFace Embeddings for RAG (runs locally, no API key needed)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     chroma_client = get_chroma_client()
     collection = chroma_client.get_or_create_collection("sentinel_failures")
-    
+
 except Exception as e:
-    logger.warning("Could not initialize AI/RAG services", error=str(e))
+    logger.warning(
+        "LLM Backend: Simulation Mode (no model connected)",
+        reason=str(e),
+        hint="Set NVIDIA_API_KEY in .env or run 'ollama pull qwen2.5-coder' locally"
+    )
     llm = None
     collection = None
 

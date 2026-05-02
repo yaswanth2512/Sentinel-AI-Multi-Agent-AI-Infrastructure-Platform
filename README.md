@@ -81,6 +81,39 @@ This project was built to explore how AI agents can operate safely within massiv
 
 ---
 
+## Configuration
+
+Sentinel AI supports two LLM backends. Copy `.env.example` to `.env` and choose one:
+
+```bash
+cp .env.example .env
+```
+
+**Option A: NVIDIA NIM (Recommended — free API key, no local GPU required)**
+
+Get a free API key at [build.nvidia.com](https://build.nvidia.com), then set in `.env`:
+
+```
+NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxx
+```
+
+The system will automatically use `meta/llama-3.1-8b-instruct` hosted on NVIDIA's servers.
+
+**Option B: Local Ollama (No API key — requires Ollama installed)**
+
+Install [Ollama](https://ollama.com), pull the model, then leave `NVIDIA_API_KEY` blank:
+
+```bash
+ollama pull qwen2.5-coder
+# No changes to .env needed — auto-detected on localhost:11434
+```
+
+**Fallback: Simulation Mode**
+
+If neither option is configured, the system runs with hardcoded simulated responses so the full pipeline can be demonstrated without any model dependency.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
