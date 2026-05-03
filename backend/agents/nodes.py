@@ -41,7 +41,8 @@ try:
             model=ollama_model,
             temperature=0.1,
             base_url=ollama_base_url,
-            api_key="local-no-auth-required"
+            api_key="local-no-auth-required",
+            request_timeout=10  # Fail fast if Ollama is not running
         )
 
     # HuggingFace Embeddings for RAG (runs locally, no API key needed)
