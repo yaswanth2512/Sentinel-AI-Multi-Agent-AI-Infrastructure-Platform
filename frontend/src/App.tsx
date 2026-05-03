@@ -50,6 +50,7 @@ function App() {
   const [completedAgents, setCompletedAgents] = useState<string[]>([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
   const [currentFile, setCurrentFile] = useState<string>('');
+  const currentFileRef = useRef<string>('');
 
   const [showSplash, setShowSplash] = useState(true);
   const [animateSplash, setAnimateSplash] = useState(false);
@@ -119,16 +120,21 @@ function App() {
 
             if (event.type === 'file_start') {
               setCurrentFile(event.file);
+              currentFileRef.current = event.file;
               setCompletedAgents([]);
               setActiveAgent('Parser');
             } else if (event.type === 'agent_complete') {
-              setCompletedAgents(prev => [...prev, event.agent]);
-              // Set the NEXT agent as active
-              const currentIdx = PIPELINE_STEPS.findIndex(s => s.name === event.agent);
-              if (currentIdx < PIPELINE_STEPS.length - 1) {
-                setActiveAgent(PIPELINE_STEPS[currentIdx + 1].name);
-              } else {
-                setActiveAgent(null);
+              const stepNames = PIPELINE_STEPS.map(s => s.name);
+              // Only track agents that exist in our UI pipeline steps
+              if (stepNames.includes(event.agent)) {
+                setCompletedAgents(prev => [...prev, event.agent]);
+                // Set the NEXT agent as active
+                const currentIdx = PIPELINE_STEPS.findIndex(s => s.name === event.agent);
+                if (currentIdx < PIPELINE_STEPS.length - 1) {
+                  setActiveAgent(PIPELINE_STEPS[currentIdx + 1].name);
+                } else {
+                  setActiveAgent(null);
+                }
               }
             } else if (event.type === 'pipeline_complete') {
               finalResult = event.result;
@@ -140,9 +146,11 @@ function App() {
       }
 
       if (finalResult) {
-        setResults([{ file: currentFile || 'analyzed_file.py', result: finalResult }]);
+        setResults([{ file: currentFileRef.current || 'analyzed_file.py', result: finalResult }]);
         setStatus('completed');
         setActiveAgent(null);
+        // Ensure all visible steps show as completed
+        setCompletedAgents(PIPELINE_STEPS.map(s => s.name));
       } else {
         setStatus('completed');
       }
@@ -246,7 +254,7 @@ function App() {
             <div
               className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-emerald-400 to-cyan-400 hidden sm:block transition-all duration-700 ease-out"
               style={{
-                width: `${(completedAgents.length / PIPELINE_STEPS.length) * 100}%`,
+                width: `${Math.min((completedAgents.length / PIPELINE_STEPS.length) * 100, 100)}%`,
               }}
             ></div>
 
