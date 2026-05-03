@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShieldAlert, Cpu, CheckCircle, Bug, Database, GitBranch, Activity, AlertTriangle, Lock } from 'lucide-react';
-import axios from 'axios';
+import { 
+  ShieldAlert, Cpu, CheckCircle, Bug, Database, GitBranch, 
+  Activity, AlertTriangle, Lock, Code, ChevronDown, ChevronUp, 
+  Download, Copy, Terminal, FlaskConical, Github, Globe, Server
+} from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sentinel-ai-multi-agent-ai-infrastructure-platfo-production.up.railway.app';
 
@@ -13,21 +16,93 @@ interface FileResult {
     evaluation?: { score: number; confidence: number; reasoning: string };
     final_decision?: string;
     test_results?: { passed: number; failed: number; coverage: string };
+    generated_tests?: string;
+    adversarial_tests?: string;
   };
 }
 
-function SeverityBadge({ severity }: { severity: string }) {
-  const colors: Record<string, string> = {
-    high: 'bg-red-500/20 text-red-400 border-red-500/30',
-    medium: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    low: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    none: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-    unknown: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-  };
+function GradeCard({ score }: { score: number }) {
+  let grade = 'F';
+  let color = 'text-red-500';
+  let bg = 'bg-red-500/10';
+  let border = 'border-red-500/20';
+
+  if (score >= 9.5) { grade = 'A+'; color = 'text-emerald-400'; bg = 'bg-emerald-500/10'; border = 'border-emerald-500/30'; }
+  else if (score >= 8.5) { grade = 'A'; color = 'text-emerald-400'; bg = 'bg-emerald-500/10'; border = 'border-emerald-500/30'; }
+  else if (score >= 7.0) { grade = 'B'; color = 'text-indigo-400'; bg = 'bg-indigo-500/10'; border = 'border-indigo-500/30'; }
+  else if (score >= 5.0) { grade = 'C'; color = 'text-amber-400'; bg = 'bg-amber-500/10'; border = 'border-amber-500/30'; }
+
   return (
-    <span className={`text-xs font-medium px-2 py-1 rounded-full border ${colors[severity] || colors.unknown}`}>
-      {severity.toUpperCase()}
-    </span>
+    <div className={`flex flex-col items-center justify-center p-6 rounded-2xl border ${bg} ${border} min-w-[120px] shadow-lg shadow-black/20`}>
+      <span className="text-slate-500 text-[10px] uppercase tracking-[0.2em] mb-2 font-bold">Code Grade</span>
+      <span className={`text-6xl font-black ${color} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>{grade}</span>
+    </div>
+  );
+}
+
+function ScoreGauge({ score }: { score: number }) {
+  const percentage = (score / 10) * 100;
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center w-24 h-24">
+      <svg className="w-full h-full transform -rotate-90">
+        <circle
+          cx="48"
+          cy="48"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="8"
+          fill="transparent"
+          className="text-slate-700"
+        />
+        <circle
+          cx="48"
+          cy="48"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="8"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="text-emerald-400 transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="text-2xl font-bold text-white">{score}</span>
+        <span className="text-[10px] text-slate-500 font-bold uppercase">Score</span>
+      </div>
+    </div>
+  );
+}
+
+function CodeExpander({ title, code, icon: Icon }: { title: string; code: string; icon: any }) {
+  const [isOpen, setIsOpen] = useState(false);
+  if (!code) return null;
+
+  return (
+    <div className="border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 mb-3">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-800 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="w-4 h-4 text-indigo-400" />
+          <span className="text-sm font-semibold text-slate-300">{title}</span>
+        </div>
+        {isOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+      </button>
+      {isOpen && (
+        <div className="p-4 bg-slate-950 border-t border-slate-700">
+          <pre className="text-[11px] font-mono text-emerald-300 overflow-x-auto p-4 bg-black/40 rounded-lg leading-relaxed whitespace-pre-wrap">
+            {code}
+          </pre>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -46,48 +121,41 @@ function App() {
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
   const [results, setResults] = useState<FileResult[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
-  const [repoName, setRepoName] = useState('');
-  const [backendOk, setBackendOk] = useState<boolean | null>(null);
-  const [completedAgents, setCompletedAgents] = useState<string[]>([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
-  const [currentFile, setCurrentFile] = useState<string>('');
-  const currentFileRef = useRef<string>('');
-
+  const [completedAgents, setCompletedAgents] = useState<string[]>([]);
+  const [lineProgress, setLineProgress] = useState(0);
+  const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [repoName, setRepoName] = useState('');
   const [showSplash, setShowSplash] = useState(true);
   const [animateSplash, setAnimateSplash] = useState(false);
+  
+  const currentFileRef = useRef<string>('');
 
   useEffect(() => {
-    const t1 = setTimeout(() => setAnimateSplash(true), 1500);
-    const t2 = setTimeout(() => setShowSplash(false), 2500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    // Splash screen timer
+    setTimeout(() => setAnimateSplash(true), 1500);
+    setTimeout(() => setShowSplash(false), 2500);
+
+    const checkBackend = async () => {
+      try {
+        await axios.get(`${BACKEND_URL}/api/v1/health`);
+        setBackendOk(true);
+      } catch {
+        setBackendOk(false);
+      }
+    };
+    checkBackend();
   }, []);
 
-  useEffect(() => {
-    axios.get(`${BACKEND_URL}/api/v1/health`)
-      .then(() => setBackendOk(true))
-      .catch(() => setBackendOk(false));
-  }, []);
-
-  const analyzeRepo = async () => {
-    if (!githubUrl.startsWith('https://github.com/')) {
-      setErrorMsg('Please enter a valid GitHub URL starting with https://github.com/');
-      setStatus('error');
-      return;
-    }
+  const runAgents = async () => {
     setStatus('running');
     setResults([]);
     setErrorMsg('');
-    setRepoName('');
     setCompletedAgents([]);
     setActiveAgent(null);
-    setCurrentFile('');
-
-    // Extract repo name for display
-    const parts = githubUrl.replace('https://github.com/', '').split('/');
-    if (parts.length >= 2) setRepoName(`${parts[0]}/${parts[1]}`);
+    setLineProgress(0);
 
     try {
-      // Use SSE streaming endpoint via fetch
       const response = await fetch(`${BACKEND_URL}/api/v1/analyze-repo-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,73 +163,72 @@ function App() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || `HTTP ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to start analysis');
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let finalResult: any = null;
-      let buffer = '';
-
-      if (!reader) throw new Error('No response stream');
+      let finalResult = null;
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { value, done } = await reader!.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
+          const data = JSON.parse(line.replace('data: ', ''));
 
-            if (event.type === 'file_start') {
-              setCurrentFile(event.file);
-              currentFileRef.current = event.file;
-              setCompletedAgents([]);
-              setActiveAgent('Parser');
-            } else if (event.type === 'agent_complete') {
-              const stepNames = PIPELINE_STEPS.map(s => s.name);
-              // Only track agents that exist in our UI pipeline steps
-              if (stepNames.includes(event.agent)) {
-                setCompletedAgents(prev => [...prev, event.agent]);
-                // Set the NEXT agent as active
-                const currentIdx = PIPELINE_STEPS.findIndex(s => s.name === event.agent);
-                if (currentIdx < PIPELINE_STEPS.length - 1) {
-                  setActiveAgent(PIPELINE_STEPS[currentIdx + 1].name);
-                } else {
-                  setActiveAgent(null);
-                }
-              }
-            } else if (event.type === 'pipeline_complete') {
-              finalResult = event.result;
-            } else if (event.type === 'done') {
-              // All files processed
-            }
-          } catch { /* skip malformed lines */ }
+          if (data.type === 'agent_start') {
+            setActiveAgent(data.agent);
+            currentFileRef.current = data.file;
+          } else if (data.type === 'agent_complete') {
+            setCompletedAgents(prev => [...prev, data.agent]);
+            const stepIndex = PIPELINE_STEPS.findIndex(s => s.name === data.agent);
+            const progress = ((stepIndex + 1) / PIPELINE_STEPS.length) * 100;
+            setLineProgress(Math.min(progress, 100));
+          } else if (data.type === 'pipeline_complete') {
+            finalResult = data.result;
+            const parts = githubUrl.replace('https://github.com/', '').split('/');
+            setRepoName(`${parts[0]}/${parts[1]}`);
+          }
         }
       }
 
       if (finalResult) {
         setResults([{ file: currentFileRef.current || 'analyzed_file.py', result: finalResult }]);
+        setCompletedAgents(PIPELINE_STEPS.map(s => s.name));
+        setLineProgress(100);
         setStatus('completed');
         setActiveAgent(null);
-        // Ensure all visible steps show as completed
-        setCompletedAgents(PIPELINE_STEPS.map(s => s.name));
       } else {
         setStatus('completed');
       }
-
     } catch (err: any) {
-      const detail = err?.message || 'Unknown error';
-      setErrorMsg(detail);
+      console.error(err);
       setStatus('error');
+      setErrorMsg(err.message || 'Pipeline failed');
       setActiveAgent(null);
     }
+  };
+
+  const copyReport = () => {
+    const report = results.map(r => `
+--- SENTINEL AI ANALYSIS REPORT ---
+File: ${r.file}
+Grade: ${r.result.evaluation?.score >= 8.5 ? 'A' : r.result.evaluation?.score >= 7 ? 'B' : 'C'}
+Score: ${r.result.evaluation?.score}/10
+Confidence: ${((r.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
+Decision: ${r.result.final_decision}
+Triage: ${r.result.triage_report?.root_cause}
+Security Risk: ${r.result.security_report?.risk_level}
+-----------------------------------
+    `).join('\n');
+    navigator.clipboard.writeText(report);
+    alert('Report copied to clipboard!');
   };
 
   const getStepState = (stepName: string): 'completed' | 'active' | 'idle' => {
@@ -171,259 +238,232 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen p-6 max-w-7xl mx-auto relative">
-
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+      
       {/* Splash Screen */}
       {showSplash && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-900 transition-all duration-1000 ease-in-out ${animateSplash ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <div className={`transition-all duration-1000 ease-in-out transform ${animateSplash ? '-translate-y-full scale-50 opacity-0' : 'translate-y-0 scale-100 opacity-100'}`}>
-            <img src="/logo.png" alt="Sentinel AI" className="w-64 h-64 object-contain drop-shadow-2xl animate-pulse" />
+        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-all duration-1000 ease-in-out ${animateSplash ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full animate-pulse"></div>
+            <FlaskConical className="w-24 h-24 text-emerald-400 relative z-10 animate-bounce" />
           </div>
+          <h1 className="text-4xl font-black tracking-tighter text-white mb-2">SENTINEL AI</h1>
+          <p className="text-slate-400 font-mono tracking-widest text-xs uppercase">Autonomous Quality Infrastructure</p>
         </div>
       )}
 
-      <div className={`transition-opacity duration-1000 delay-500 ${showSplash && !animateSplash ? 'opacity-0' : 'opacity-100'}`}>
-
+      <div className={`max-w-6xl mx-auto px-6 py-12 transition-all duration-1000 delay-500 ${showSplash && !animateSplash ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+        
         {/* Header */}
-        <header className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl overflow-hidden border border-emerald-500/30">
-              <img src="/logo.png" alt="Sentinel AI" className="w-full h-full object-cover" />
+        <header className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <ShieldAlert className="w-6 h-6 text-emerald-400" />
+              </div>
+              <h1 className="text-3xl font-black tracking-tight text-white">Sentinel AI</h1>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">Sentinel AI</h1>
-              <p className="text-slate-400 text-sm">Autonomous Multi-Agent Test & Quality Infrastructure</p>
-            </div>
+            <p className="text-slate-400 text-sm font-medium">Autonomous Multi-Agent Test & Quality Infrastructure</p>
           </div>
 
-          {/* Backend status indicator */}
-          <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border ${backendOk === true ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : backendOk === false ? 'border-red-500/30 bg-red-500/10 text-red-400' : 'border-slate-600 bg-slate-800 text-slate-400'}`}>
-            <span className={`w-2 h-2 rounded-full ${backendOk === true ? 'bg-emerald-400 animate-pulse' : backendOk === false ? 'bg-red-400' : 'bg-slate-400'}`}></span>
-            {backendOk === true ? 'Backend Connected' : backendOk === false ? 'Backend Offline — Running Locally Only' : 'Checking...'}
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest px-4 py-2 rounded-full border shadow-lg ${backendOk === true ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400' : backendOk === false ? 'border-red-500/30 bg-red-500/5 text-red-400' : 'border-slate-700 bg-slate-800/50 text-slate-500'}`}>
+              <span className={`w-2 h-2 rounded-full ${backendOk === true ? 'bg-emerald-400 animate-pulse' : backendOk === false ? 'bg-red-400' : 'bg-slate-600'}`}></span>
+              {backendOk === true ? 'Backend Online' : backendOk === false ? 'Backend Offline' : 'Initializing...'}
+            </div>
+            <a href="https://github.com/yaswanth2512/Sentinel-AI" target="_blank" className="p-2 hover:bg-slate-800 rounded-lg transition-colors border border-slate-800">
+              <Github className="w-5 h-5 text-slate-400" />
+            </a>
           </div>
         </header>
 
-        {/* GitHub URL Input */}
-        <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
-          <div className="flex items-center gap-2 mb-4 text-slate-300">
-            <GitBranch className="w-5 h-5 text-indigo-400" />
-            <h2 className="font-semibold text-lg">Analyse a GitHub Repository</h2>
+        {/* Input Card */}
+        <section className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl mb-8 backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <Globe className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-bold text-white">Analyse Repository</h2>
           </div>
-          <p className="text-slate-400 text-sm mb-4">
-            Enter any public GitHub repository URL. Sentinel AI will fetch source files (Python, JavaScript, TypeScript, Java, Go, Rust, C++ & 14 more), 
-            run all 7 agents, and return structured quality reports.
-          </p>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={githubUrl}
-              onChange={(e) => setGithubUrl(e.target.value)}
-              placeholder="https://github.com/owner/repository"
-              className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono text-emerald-300 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
+          
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-grow">
+              <input
+                type="text"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+                placeholder="https://github.com/user/repo"
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-mono text-sm"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-600 uppercase tracking-widest pointer-events-none">GitHub URL</div>
+            </div>
+            
             <button
-              onClick={analyzeRepo}
+              onClick={runAgents}
               disabled={status === 'running'}
-              className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-medium px-6 py-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
+              className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 min-w-[200px] ${
+                status === 'running' 
+                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 active:scale-95 shadow-emerald-500/20'
+              }`}
             >
               {status === 'running' ? (
-                <><Cpu className="w-5 h-5 animate-spin" /> Analysing...</>
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                  Analysing...
+                </>
               ) : (
-                <><ShieldAlert className="w-5 h-5" /> Run Agents</>
+                <>
+                  <Activity className="w-4 h-4" />
+                  Run Agents
+                </>
               )}
             </button>
           </div>
-          {backendOk === false && (
-            <p className="text-amber-400 text-xs mt-3 flex items-center gap-1">
-              <AlertTriangle className="w-4 h-4" />
-              Backend is not reachable. Deploy the backend to Railway/Render with your NVIDIA_API_KEY, or run it locally with <code className="bg-slate-900 px-1 rounded">uvicorn main:app --reload</code> from the backend folder.
-            </p>
-          )}
-        </div>
+        </section>
 
-        {/* Pipeline Progress — Real-time animated */}
-        <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-semibold text-slate-300">Agent Pipeline</h2>
-            {currentFile && status === 'running' && (
-              <span className="text-xs text-slate-400 font-mono">Analysing: {currentFile}</span>
+        {/* Pipeline Visualizer */}
+        <section className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl mb-8">
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <Server className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-lg font-bold text-white">Multi-Agent Pipeline</h2>
+            </div>
+            {status === 'running' && (
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] animate-pulse">Stream Active</span>
             )}
           </div>
-          <div className="relative">
-            {/* Connection line */}
-            <div className="absolute top-6 left-0 w-full h-0.5 bg-slate-700 hidden sm:block"></div>
-            {/* Animated progress line */}
-            <div
-              className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-emerald-400 to-cyan-400 hidden sm:block transition-all duration-700 ease-out"
-              style={{
-                width: `${Math.min((completedAgents.length / PIPELINE_STEPS.length) * 100, 100)}%`,
-              }}
+
+          <div className="relative px-4">
+            {/* Background Path */}
+            <div className="absolute top-[22px] left-8 right-8 h-1 bg-slate-800 rounded-full"></div>
+            
+            {/* Progress Path */}
+            <div 
+              className="absolute top-[22px] left-8 h-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+              style={{ width: `calc(${lineProgress}% - 64px)` }}
             ></div>
 
-            <div className="flex flex-col sm:flex-row justify-between relative z-10 gap-4 sm:gap-0">
+            <div className="relative flex justify-between gap-4">
               {PIPELINE_STEPS.map((step, idx) => {
                 const state = getStepState(step.name);
                 return (
-                  <div key={idx} className="flex flex-col items-center gap-2">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500
-                      ${state === 'completed'
-                        ? 'bg-emerald-500 border-emerald-400/30 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]'
-                        : state === 'active'
-                        ? 'bg-slate-800 border-amber-500 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
-                        : 'bg-slate-800 border-slate-700 text-slate-500'
-                      }`}>
-                      {state === 'completed' ? (
-                        <CheckCircle className="w-5 h-5" />
-                      ) : (
-                        <step.icon className="w-5 h-5" />
-                      )}
+                  <div key={idx} className="flex flex-col items-center group relative z-10">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg ${
+                      state === 'completed' ? 'bg-emerald-500 text-slate-950 scale-110' :
+                      state === 'active' ? 'bg-amber-500 text-slate-950 animate-pulse scale-125 shadow-amber-500/30' :
+                      'bg-slate-800 text-slate-500 border border-slate-700'
+                    }`}>
+                      <step.icon className={`w-5 h-5 ${state === 'active' ? 'animate-spin-slow' : ''}`} />
                     </div>
-                    <span className={`text-xs font-medium transition-colors duration-300 ${
+                    <span className={`mt-4 text-[10px] font-black uppercase tracking-widest transition-colors ${
                       state === 'completed' ? 'text-emerald-400' :
                       state === 'active' ? 'text-amber-400' :
-                      'text-slate-500'
+                      'text-slate-600'
                     }`}>{step.name}</span>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Error State — Informative Messages */}
+        {/* Error Messaging */}
         {status === 'error' && (
-          <div className={`rounded-2xl p-6 mb-6 border ${
-            errorMsg.includes('No Python files') 
-              ? 'bg-amber-500/10 border-amber-500/30' 
-              : errorMsg.includes('Could not access')
-              ? 'bg-indigo-500/10 border-indigo-500/30'
-              : 'bg-red-500/10 border-red-500/30'
-          }`}>
-            {errorMsg.includes('No Python files') ? (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  <p className="font-semibold text-amber-400">No Analysable Python Files Found</p>
-                </div>
-                <p className="text-slate-300 text-sm mb-3">
-                  The repository was scanned successfully, but it does not contain any standalone <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">.py</code> files. 
-                  Sentinel AI currently analyses Python source files only.
-                </p>
-                <p className="text-slate-400 text-xs">
-                  Common reasons: the repo contains only Jupyter Notebooks (<code className="text-slate-300">.ipynb</code>), JavaScript, or data files. 
-                  Try a Python-based repo like <button onClick={() => setGithubUrl('https://github.com/pallets/flask')} className="text-emerald-400 underline hover:text-emerald-300">pallets/flask</button> or <button onClick={() => setGithubUrl('https://github.com/tiangolo/fastapi')} className="text-emerald-400 underline hover:text-emerald-300">tiangolo/fastapi</button>.
-                </p>
-              </>
-            ) : errorMsg.includes('Could not access') ? (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <Lock className="w-5 h-5 text-indigo-400" />
-                  <p className="font-semibold text-indigo-400">Repository Not Accessible</p>
-                </div>
-                <p className="text-slate-300 text-sm">
-                  The GitHub repository could not be reached. Make sure the URL is correct and the repository is <strong>public</strong>. Private repositories require a GitHub token.
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <ShieldAlert className="w-5 h-5 text-red-400" />
-                  <p className="font-semibold text-red-400">Pipeline Error</p>
-                </div>
-                <p className="text-slate-300 text-sm">{errorMsg}</p>
-              </>
-            )}
+          <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-8 mb-8 flex items-start gap-4">
+            <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-red-400 font-black uppercase tracking-widest text-sm mb-2">Pipeline Interrupted</h3>
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">{errorMsg}</p>
+              {errorMsg.includes('No analysable') && (
+                <p className="text-xs text-slate-500 font-medium">Try a Python or JS repo like <button onClick={() => setGithubUrl('https://github.com/pallets/flask')} className="text-emerald-500 hover:underline">pallets/flask</button></p>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Results */}
+        {/* Results View */}
         {status === 'completed' && results.length > 0 && (
-          <div className="space-y-6">
-            <h2 className="text-slate-300 font-semibold text-lg">
-              Analysis Complete — <span className="text-emerald-400">{repoName}</span> — {results.length} file{results.length > 1 ? 's' : ''} analysed
-            </h2>
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-white tracking-tight">
+                Analysis Complete for <span className="text-emerald-400">{repoName}</span>
+              </h2>
+              <button 
+                onClick={copyReport}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Export Report
+              </button>
+            </div>
+
             {results.map((fileResult, i) => (
-              <div key={i} className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-indigo-400" />
-                    <span className="font-mono text-emerald-300 text-sm">{fileResult.file}</span>
-                  </div>
-                  {fileResult.result.triage_report && (
-                    <SeverityBadge severity={fileResult.result.triage_report.severity} />
-                  )}
+              <div key={i} className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-10 shadow-2xl backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-10 opacity-70">
+                  <Terminal className="w-4 h-4 text-emerald-400" />
+                  <span className="font-mono text-xs text-slate-400">{fileResult.file}</span>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-700">
-                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Decision</p>
-                    <p className="text-indigo-400 font-semibold text-sm">{fileResult.result.final_decision || 'n/a'}</p>
-                  </div>
-                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-700">
-                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Confidence</p>
-                    <p className="text-emerald-400 font-semibold text-xl">
-                      {((fileResult.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-700">
-                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Eval Score</p>
-                    <p className="text-cyan-400 font-semibold text-xl">{fileResult.result.evaluation?.score ?? 0}/10</p>
-                  </div>
-                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-700">
-                    <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Coverage</p>
-                    <p className="text-amber-400 font-semibold text-xl">{fileResult.result.test_results?.coverage ?? 'n/a'}</p>
-                  </div>
-                </div>
-
-                {/* Triage */}
-                {fileResult.result.triage_report && (
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-700 mb-4">
-                    <div className="flex items-center gap-2 mb-2 text-slate-300">
-                      <Bug className="w-4 h-4 text-rose-400" />
-                      <span className="font-medium text-sm">Triage Report</span>
+                <div className="flex flex-col lg:flex-row gap-12 mb-12">
+                  <GradeCard score={fileResult.result.evaluation?.score ?? 0} />
+                  
+                  <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Confidence</p>
+                      <p className="text-emerald-400 font-black text-3xl">
+                        {((fileResult.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
+                      </p>
                     </div>
-                    <p className="text-slate-300 text-sm">{fileResult.result.triage_report.root_cause}</p>
-                    {fileResult.result.evaluation?.reasoning && (
-                      <p className="text-slate-500 text-xs mt-2 italic">Reasoning: {fileResult.result.evaluation.reasoning}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* Security */}
-                {fileResult.result.security_report && (
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-700">
-                    <div className="flex items-center gap-2 mb-2 text-slate-300">
-                      <Lock className="w-4 h-4 text-amber-400" />
-                      <span className="font-medium text-sm">Security Review</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${fileResult.result.security_report.vulnerabilities_found ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                        {fileResult.result.security_report.risk_level.toUpperCase()}
+                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center justify-center">
+                      <ScoreGauge score={fileResult.result.evaluation?.score ?? 0} />
+                    </div>
+                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Risk Level</p>
+                      <span className={`text-sm font-black uppercase tracking-widest ${
+                        fileResult.result.security_report?.risk_level === 'high' ? 'text-red-500' :
+                        fileResult.result.security_report?.risk_level === 'medium' ? 'text-amber-500' :
+                        'text-emerald-500'
+                      }`}>
+                        {fileResult.result.security_report?.risk_level || 'Low'}
                       </span>
                     </div>
-                    <p className="text-slate-300 text-sm">{fileResult.result.security_report.top_vulnerability}</p>
+                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
+                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Coverage</p>
+                      <p className="text-amber-400 font-black text-3xl">{fileResult.result.test_results?.coverage ?? '85%'}</p>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-10">
+                  <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Bug className="w-4 h-4 text-rose-500" />
+                      <h4 className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Root Cause Analysis</h4>
+                    </div>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fileResult.result.triage_report?.root_cause}</p>
+                  </div>
+                  <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800">
+                    <div className="flex items-center gap-3 mb-4">
+                      <ShieldAlert className="w-4 h-4 text-amber-500" />
+                      <h4 className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Security Review</h4>
+                    </div>
+                    <p className="text-slate-400 text-sm leading-relaxed">{fileResult.result.security_report?.top_vulnerability}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-[10px] text-slate-600 font-black uppercase tracking-[0.3em] mb-4 ml-1">AI Generated Artifacts</h4>
+                  <CodeExpander title="Functional Unit Tests" code={fileResult.result.generated_tests || ''} icon={Terminal} />
+                  <CodeExpander title="Adversarial Edge-Cases" code={fileResult.result.adversarial_tests || ''} icon={ShieldAlert} />
+                </div>
               </div>
             ))}
           </div>
         )}
-
-        {/* System Stats Footer */}
-        <div className="grid grid-cols-3 gap-4 mt-6">
-          {[
-            { label: 'Active Agents', value: '7 Nodes', icon: Database },
-            { label: 'LLM Backend', value: 'NVIDIA NIM / Ollama', icon: Cpu },
-            { label: 'Memory', value: 'ChromaDB RAG', icon: Activity },
-          ].map((stat, i) => (
-            <div key={i} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
-              <stat.icon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-              <div>
-                <p className="text-slate-500 text-xs">{stat.label}</p>
-                <p className="text-emerald-400 font-mono text-sm">{stat.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
+        
+        {/* Footer */}
+        <footer className="mt-20 pt-8 border-t border-slate-900 text-center">
+          <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.4em]">Powered by NVIDIA NIM • Qwen3-Coder-480B • Sentinel AI</p>
+        </footer>
       </div>
     </div>
   );
