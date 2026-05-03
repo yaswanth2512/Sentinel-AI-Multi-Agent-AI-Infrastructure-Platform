@@ -4,6 +4,7 @@ import {
   Activity, AlertTriangle, Lock, Code, ChevronDown, ChevronUp, 
   Download, Copy, Terminal, FlaskConical, Github, Globe, Server
 } from 'lucide-react';
+import axios from 'axios';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sentinel-ai-multi-agent-ai-infrastructure-platfo-production.up.railway.app';
 
@@ -216,17 +217,20 @@ function App() {
   };
 
   const copyReport = () => {
-    const report = results.map(r => `
+    const report = results.map(r => {
+      const score = r.result.evaluation?.score ?? 0;
+      return `
 --- SENTINEL AI ANALYSIS REPORT ---
 File: ${r.file}
-Grade: ${r.result.evaluation?.score >= 8.5 ? 'A' : r.result.evaluation?.score >= 7 ? 'B' : 'C'}
-Score: ${r.result.evaluation?.score}/10
+Grade: ${score >= 8.5 ? 'A' : score >= 7 ? 'B' : 'C'}
+Score: ${score}/10
 Confidence: ${((r.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
 Decision: ${r.result.final_decision}
 Triage: ${r.result.triage_report?.root_cause}
 Security Risk: ${r.result.security_report?.risk_level}
 -----------------------------------
-    `).join('\n');
+      `;
+    }).join('\n');
     navigator.clipboard.writeText(report);
     alert('Report copied to clipboard!');
   };
@@ -352,7 +356,7 @@ Security Risk: ${r.result.security_report?.risk_level}
                       state === 'active' ? 'bg-amber-500 text-slate-950 animate-pulse scale-125 shadow-amber-500/30' :
                       'bg-slate-800 text-slate-500 border border-slate-700'
                     }`}>
-                      <step.icon className={`w-5 h-5 ${state === 'active' ? 'animate-spin-slow' : ''}`} />
+                      <step.icon className="w-5 h-5" />
                     </div>
                     <span className={`mt-4 text-[10px] font-black uppercase tracking-widest transition-colors ${
                       state === 'completed' ? 'text-emerald-400' :
@@ -373,9 +377,6 @@ Security Risk: ${r.result.security_report?.risk_level}
             <div>
               <h3 className="text-red-400 font-black uppercase tracking-widest text-sm mb-2">Pipeline Interrupted</h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-4">{errorMsg}</p>
-              {errorMsg.includes('No analysable') && (
-                <p className="text-xs text-slate-500 font-medium">Try a Python or JS repo like <button onClick={() => setGithubUrl('https://github.com/pallets/flask')} className="text-emerald-500 hover:underline">pallets/flask</button></p>
-              )}
             </div>
           </div>
         )}
