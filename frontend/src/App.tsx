@@ -91,7 +91,7 @@ function App() {
       const response = await fetch(`${BACKEND_URL}/api/v1/analyze-repo-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ github_url: githubUrl, max_files: 3 }),
+        body: JSON.stringify({ github_url: githubUrl, max_files: 1 }),
       });
 
       if (!response.ok) {
