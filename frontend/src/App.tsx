@@ -37,6 +37,7 @@ const PIPELINE_STEPS = [
   { name: 'Breaker', icon: ShieldAlert },
   { name: 'Execute', icon: Cpu },
   { name: 'Triage', icon: Bug },
+  { name: 'Security', icon: Lock },
   { name: 'Evaluate', icon: CheckCircle },
 ];
 

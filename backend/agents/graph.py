@@ -44,14 +44,13 @@ def run_pipeline(code_content: str, file_path: str):
     workflow.add_node("evaluate_outputs", evaluate_outputs)
     workflow.add_node("decide_action", decide_action)
 
-    # Define Edges
+    # Define Edges — fully sequential for reliable 480B model execution
     workflow.add_edge(START, "parse_code")
     workflow.add_edge("parse_code", "generate_tests")
     workflow.add_edge("generate_tests", "generate_adversarial_tests")
     workflow.add_edge("generate_adversarial_tests", "execute_tests")
     workflow.add_edge("execute_tests", "triage_failures")
-    workflow.add_edge("execute_tests", "security_review") # Run parallel to triage
-    workflow.add_edge("triage_failures", "evaluate_outputs")
+    workflow.add_edge("triage_failures", "security_review")
     workflow.add_edge("security_review", "evaluate_outputs")
     workflow.add_edge("evaluate_outputs", "decide_action")
     workflow.add_edge("decide_action", END)
@@ -115,8 +114,7 @@ def stream_pipeline(code_content: str, file_path: str):
     workflow.add_edge("generate_tests", "generate_adversarial_tests")
     workflow.add_edge("generate_adversarial_tests", "execute_tests")
     workflow.add_edge("execute_tests", "triage_failures")
-    workflow.add_edge("execute_tests", "security_review")
-    workflow.add_edge("triage_failures", "evaluate_outputs")
+    workflow.add_edge("triage_failures", "security_review")
     workflow.add_edge("security_review", "evaluate_outputs")
     workflow.add_edge("evaluate_outputs", "decide_action")
     workflow.add_edge("decide_action", END)
