@@ -50,7 +50,7 @@ class CodeSubmission(BaseModel):
 
 class RepoSubmission(BaseModel):
     github_url: str
-    max_files: int = 1  # Default to 1 file to prevent timeouts on free tiers
+    max_files: int = 3  # Analyse up to 3 files (mixed languages supported)
 
 @app.post("/api/v1/analyze")
 async def analyze_code(submission: CodeSubmission):
