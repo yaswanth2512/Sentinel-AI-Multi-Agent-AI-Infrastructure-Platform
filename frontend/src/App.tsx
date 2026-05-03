@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   ShieldAlert, Cpu, CheckCircle, Bug, Database, GitBranch, 
   Activity, AlertTriangle, Lock, Code, ChevronDown, ChevronUp, 
-  Download, Copy, Terminal, FlaskConical, Github, Globe, Server
+  Download, Copy, Terminal, FlaskConical, Globe, Server
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -276,7 +276,7 @@ Security Risk: ${r.result.security_report?.risk_level}
               {backendOk === true ? 'Backend Online' : backendOk === false ? 'Backend Offline' : 'Initializing...'}
             </div>
             <a href="https://github.com/yaswanth2512/Sentinel-AI" target="_blank" className="p-2 hover:bg-slate-800 rounded-lg transition-colors border border-slate-800">
-              <Github className="w-5 h-5 text-slate-400" />
+              <Globe className="w-5 h-5 text-slate-400" />
             </a>
           </div>
         </header>
