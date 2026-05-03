@@ -89,18 +89,24 @@ async def analyze_repo(submission: RepoSubmission):
         raise HTTPException(status_code=404, detail=f"Could not access GitHub repo: {github_url}. Make sure it is public.")
 
     tree = tree_resp.json().get("tree", [])
-    python_files = [
+    supported_exts = (".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rs",
+                      ".cpp", ".c", ".h", ".cs", ".rb", ".php", ".kt", ".swift",
+                      ".scala", ".r", ".dart", ".lua")
+    skip_patterns = ["__pycache__", "test_", ".egg", "migrations", "node_modules",
+                     "vendor", "dist/", "build/", ".min.", "package-lock"]
+    source_files = [
         f for f in tree
-        if f["type"] == "blob" and f["path"].endswith(".py")
-        and not any(skip in f["path"] for skip in ["__pycache__", "test_", ".egg", "migrations"])
+        if f["type"] == "blob"
+        and any(f["path"].endswith(ext) for ext in supported_exts)
+        and not any(skip in f["path"] for skip in skip_patterns)
     ][:submission.max_files]
 
-    if not python_files:
-        raise HTTPException(status_code=422, detail="No analysable Python files found in repository.")
+    if not source_files:
+        raise HTTPException(status_code=422, detail="No analysable source files found. Supported: Python, JavaScript, TypeScript, Java, Go, Rust, C/C++, C#, Ruby, PHP, Kotlin, Swift, Scala, R, Dart, Lua.")
 
     # Fetch and analyse each file
     analysis_results = []
-    for file_info in python_files:
+    for file_info in source_files:
         raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{file_info['path']}"
         code_resp = http_requests.get(raw_url, timeout=10)
         if code_resp.status_code != 200:
@@ -154,17 +160,23 @@ async def analyze_repo_stream(submission: RepoSubmission):
         raise HTTPException(status_code=404, detail="Could not access GitHub repo.")
 
     tree = tree_resp.json().get("tree", [])
-    python_files = [
+    supported_exts = (".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rs",
+                      ".cpp", ".c", ".h", ".cs", ".rb", ".php", ".kt", ".swift",
+                      ".scala", ".r", ".dart", ".lua")
+    skip_patterns = ["__pycache__", "test_", ".egg", "migrations", "node_modules",
+                     "vendor", "dist/", "build/", ".min.", "package-lock"]
+    source_files = [
         f for f in tree
-        if f["type"] == "blob" and f["path"].endswith(".py")
-        and not any(skip in f["path"] for skip in ["__pycache__", "test_", ".egg", "migrations"])
+        if f["type"] == "blob"
+        and any(f["path"].endswith(ext) for ext in supported_exts)
+        and not any(skip in f["path"] for skip in skip_patterns)
     ][:submission.max_files]
 
-    if not python_files:
-        raise HTTPException(status_code=422, detail="No Python files found.")
+    if not source_files:
+        raise HTTPException(status_code=422, detail="No analysable source files found. Supported: Python, JavaScript, TypeScript, Java, Go, Rust, C/C++, C#, Ruby, PHP, Kotlin, Swift, Scala, R, Dart, Lua.")
 
     def event_generator():
-        for file_info in python_files:
+        for file_info in source_files:
             raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{file_info['path']}"
             code_resp = http_requests.get(raw_url, timeout=10)
             if code_resp.status_code != 200:
