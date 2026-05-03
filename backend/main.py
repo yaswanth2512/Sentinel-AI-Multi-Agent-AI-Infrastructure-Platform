@@ -1,15 +1,17 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from prometheus_client import make_asgi_app
 import structlog
 import requests as http_requests
 import os
+import json
 from pydantic import BaseModel
 from typing import Optional
 
 from core.telemetry import setup_telemetry
 from core.database import init_db
-from agents.graph import run_pipeline
+from agents.graph import run_pipeline, stream_pipeline
 from core.celery_app import run_pipeline_task
 from routers.webhook import router as webhook_router
 
@@ -48,7 +50,7 @@ class CodeSubmission(BaseModel):
 
 class RepoSubmission(BaseModel):
     github_url: str
-    max_files: int = 3  # Limit files analysed to avoid timeouts on free tiers
+    max_files: int = 1  # Default to 1 file to prevent timeouts on free tiers
 
 @app.post("/api/v1/analyze")
 async def analyze_code(submission: CodeSubmission):
@@ -125,3 +127,68 @@ async def analyze_repo(submission: RepoSubmission):
 @app.get("/api/v1/health")
 def health_check():
     return {"status": "ok", "message": "Sentinel AI backend is running"}
+
+
+@app.post("/api/v1/analyze-repo-stream")
+async def analyze_repo_stream(submission: RepoSubmission):
+    """
+    SSE endpoint: Streams real-time agent progress events as each LangGraph node completes.
+    The frontend uses EventSource to listen and animate the pipeline visualization.
+    """
+    github_url = submission.github_url.rstrip("/")
+
+    try:
+        parts = github_url.replace("https://github.com/", "").split("/")
+        owner, repo = parts[0], parts[1]
+    except (IndexError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid GitHub URL.")
+
+    github_token = os.getenv("GITHUB_TOKEN", "")
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if github_token and github_token != "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN_HERE":
+        headers["Authorization"] = f"token {github_token}"
+
+    tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/HEAD?recursive=1"
+    tree_resp = http_requests.get(tree_url, headers=headers, timeout=10)
+    if tree_resp.status_code != 200:
+        raise HTTPException(status_code=404, detail="Could not access GitHub repo.")
+
+    tree = tree_resp.json().get("tree", [])
+    python_files = [
+        f for f in tree
+        if f["type"] == "blob" and f["path"].endswith(".py")
+        and not any(skip in f["path"] for skip in ["__pycache__", "test_", ".egg", "migrations"])
+    ][:submission.max_files]
+
+    if not python_files:
+        raise HTTPException(status_code=422, detail="No Python files found.")
+
+    def event_generator():
+        for file_info in python_files:
+            raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/HEAD/{file_info['path']}"
+            code_resp = http_requests.get(raw_url, timeout=10)
+            if code_resp.status_code != 200:
+                continue
+
+            code = code_resp.text
+            if len(code) > 8000:
+                code = code[:8000] + "\n# ... (truncated)"
+
+            # Send file start event
+            yield f"data: {json.dumps({'type': 'file_start', 'file': file_info['path']})}\n\n"
+
+            # Stream each agent completion event
+            for event in stream_pipeline(code, file_info["path"]):
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
