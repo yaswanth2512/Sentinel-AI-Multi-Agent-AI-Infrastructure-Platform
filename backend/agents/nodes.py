@@ -27,7 +27,7 @@ try:
 
     if nvidia_api_key and nvidia_api_key != "YOUR_NVIDIA_NIM_API_KEY_HERE":
         # NVIDIA NIM — purpose-built code model. Get free key at build.nvidia.com
-        nim_model = os.getenv("NVIDIA_NIM_MODEL", "qwen/qwen2.5-coder-7b-instruct")
+        nim_model = os.getenv("NVIDIA_NIM_MODEL", "meta/llama-3.1-8b-instruct")
         logger.info("LLM Backend: NVIDIA NIM", model=nim_model)
         llm = ChatOpenAI(
             model=nim_model,
