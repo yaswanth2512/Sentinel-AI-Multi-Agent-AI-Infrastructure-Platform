@@ -103,8 +103,6 @@ function App() {
       const decoder = new TextDecoder();
       let finalResult: any = null;
       let buffer = '';
-      const allResults: FileResult[] = [];
-      let latestFile = '';
 
       if (!reader) throw new Error('No response stream');
 
@@ -122,12 +120,6 @@ function App() {
             const event = JSON.parse(line.slice(6));
 
             if (event.type === 'file_start') {
-              // Save previous file's result before starting new one
-              if (finalResult && latestFile) {
-                allResults.push({ file: latestFile, result: finalResult });
-                finalResult = null;
-              }
-              latestFile = event.file;
               setCurrentFile(event.file);
               currentFileRef.current = event.file;
               setCompletedAgents([]);
@@ -148,24 +140,17 @@ function App() {
             } else if (event.type === 'pipeline_complete') {
               finalResult = event.result;
             } else if (event.type === 'done') {
-              // Save the last file's result
-              if (finalResult && latestFile) {
-                allResults.push({ file: latestFile, result: finalResult });
-              }
+              // All files processed
             }
           } catch { /* skip malformed lines */ }
         }
       }
 
-      if (allResults.length > 0) {
-        setResults(allResults);
+      if (finalResult) {
+        setResults([{ file: currentFileRef.current || 'analyzed_file.py', result: finalResult }]);
         setStatus('completed');
         setActiveAgent(null);
-        setCompletedAgents(PIPELINE_STEPS.map(s => s.name));
-      } else if (finalResult) {
-        setResults([{ file: currentFileRef.current || 'analyzed_file', result: finalResult }]);
-        setStatus('completed');
-        setActiveAgent(null);
+        // Ensure all visible steps show as completed
         setCompletedAgents(PIPELINE_STEPS.map(s => s.name));
       } else {
         setStatus('completed');
