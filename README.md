@@ -27,6 +27,15 @@
     <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white" alt="GitHub Actions" />
     <img src="https://img.shields.io/badge/LibCST-FF4785?style=for-the-badge&logo=python&logoColor=white" alt="LibCST" />
   </p>
+
+  <p>
+    <a href="https://sentinel-ai-multi-agent-ai-infrastr.vercel.app/" target="_blank">
+      <img src="https://img.shields.io/badge/Live%20Demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+    </a>
+    <a href="https://github.com/yaswanth2512/Sentinel-AI">
+      <img src="https://img.shields.io/badge/Source%20Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
+    </a>
+  </p>
 </div>
 
 <hr />
