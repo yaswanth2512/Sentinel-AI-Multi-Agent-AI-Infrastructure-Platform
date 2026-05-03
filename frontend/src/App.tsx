@@ -210,7 +210,8 @@ function App() {
             <h2 className="font-semibold text-lg">Analyse a GitHub Repository</h2>
           </div>
           <p className="text-slate-400 text-sm mb-4">
-            Enter any public GitHub repository URL. Sentinel AI will fetch Python files, run all 7 agents, and return structured quality reports.
+            Enter any public GitHub repository URL. Sentinel AI will fetch source files (Python, JavaScript, TypeScript, Java, Go, Rust, C++ & 14 more), 
+            run all 7 agents, and return structured quality reports.
           </p>
           <div className="flex gap-3">
             <input

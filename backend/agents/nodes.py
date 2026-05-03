@@ -60,72 +60,134 @@ except Exception as e:
     llm = None
     collection = None
 
+# Supported file extensions and their language names
+SUPPORTED_EXTENSIONS = {
+    ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript (React)",
+    ".ts": "TypeScript", ".tsx": "TypeScript (React)",
+    ".java": "Java", ".go": "Go", ".rs": "Rust",
+    ".cpp": "C++", ".c": "C", ".h": "C/C++ Header",
+    ".cs": "C#", ".rb": "Ruby", ".php": "PHP",
+    ".kt": "Kotlin", ".swift": "Swift", ".scala": "Scala",
+    ".r": "R", ".dart": "Dart", ".lua": "Lua",
+}
+
+
+def _detect_language(file_path: str) -> str:
+    """Detect programming language from file extension."""
+    import os
+    ext = os.path.splitext(file_path)[1].lower()
+    return SUPPORTED_EXTENSIONS.get(ext, "Unknown")
+
+
 def parse_code(state: dict) -> dict:
     logger.info("Agent: Code Parser", file=state.get("file_path"))
     code = state["code_content"]
-    # TOP 1% INNOVATION: Concrete Syntax Tree (libcst) instead of raw AST.
-    # LibCST preserves formatting and comments, crucial for massive enterprise monorepos.
-    try:
-        module = cst.parse_module(code)
-        
-        class ComponentVisitor(cst.CSTVisitor):
-            def __init__(self):
-                self.functions = []
-                self.classes = []
-                
-            def visit_FunctionDef(self, node: cst.FunctionDef):
-                self.functions.append(node.name.value)
-                
-            def visit_ClassDef(self, node: cst.ClassDef):
-                self.classes.append(node.name.value)
-                
-        visitor = ComponentVisitor()
-        module.visit(visitor)
-        
-        result_obj = ASTParsingResult(
-            functions=visitor.functions, 
-            classes=visitor.classes, 
-            loc=len(code.splitlines()),
-            parser="libcst"
-        )
-        parsed_ast = result_obj.model_dump()
-    except Exception as e:
-        parsed_ast = {"error": str(e)}
-        
+    language = _detect_language(state.get("file_path", "file.py"))
+
+    # Python: use LibCST for precise Concrete Syntax Tree parsing
+    if language == "Python":
+        try:
+            module = cst.parse_module(code)
+
+            class ComponentVisitor(cst.CSTVisitor):
+                def __init__(self):
+                    self.functions = []
+                    self.classes = []
+
+                def visit_FunctionDef(self, node: cst.FunctionDef):
+                    self.functions.append(node.name.value)
+
+                def visit_ClassDef(self, node: cst.ClassDef):
+                    self.classes.append(node.name.value)
+
+            visitor = ComponentVisitor()
+            module.visit(visitor)
+
+            result_obj = ASTParsingResult(
+                functions=visitor.functions,
+                classes=visitor.classes,
+                loc=len(code.splitlines()),
+                parser="libcst"
+            )
+            parsed_ast = result_obj.model_dump()
+        except Exception as e:
+            parsed_ast = {"error": str(e)}
+    else:
+        # All other languages: use the LLM to extract code structure
+        if llm:
+            try:
+                prompt = ChatPromptTemplate.from_template(
+                    "Analyze this {language} code and extract all function/method names and class names.\n"
+                    "Code:\n{code}\n\n"
+                    "Return ONLY a JSON object with this exact format:\n"
+                    '{{"functions": ["func1", "func2"], "classes": ["Class1"], "loc": <number_of_lines>}}'
+                )
+                chain = prompt | llm
+                res = chain.invoke({"code": code, "language": language})
+                import json as json_mod
+                try:
+                    data = json_mod.loads(res.content)
+                    parsed_ast = ASTParsingResult(
+                        functions=data.get("functions", []),
+                        classes=data.get("classes", []),
+                        loc=len(code.splitlines()),
+                        parser=f"llm-{language.lower()}"
+                    ).model_dump()
+                except (json_mod.JSONDecodeError, Exception):
+                    parsed_ast = ASTParsingResult(
+                        functions=[], classes=[],
+                        loc=len(code.splitlines()),
+                        parser=f"llm-{language.lower()}"
+                    ).model_dump()
+            except Exception as e:
+                parsed_ast = {"error": str(e), "parser": f"llm-{language.lower()}"}
+        else:
+            parsed_ast = ASTParsingResult(
+                functions=["simulated_function"], classes=["SimulatedClass"],
+                loc=len(code.splitlines()),
+                parser=f"simulated-{language.lower()}"
+            ).model_dump()
+
     return {"parsed_ast": parsed_ast}
 
 def generate_tests(state: dict) -> dict:
     logger.info("Agent: Test Generation")
+    language = _detect_language(state.get("file_path", "file.py"))
     if llm:
         prompt = ChatPromptTemplate.from_template(
-            "Write pytest cases for the following python code:\n{code}\nOnly return the python code."
+            "Write unit test cases for the following {language} code:\n{code}\n"
+            "Use the appropriate testing framework for {language} (e.g., pytest for Python, Jest for JavaScript, JUnit for Java).\n"
+            "Only return the test code."
         )
         chain = prompt | llm
         try:
-            res = chain.invoke({"code": state["code_content"]})
+            res = chain.invoke({"code": state["code_content"], "language": language})
             tests = res.content
         except Exception:
-            tests = "def test_placeholder():\n    assert True\n"
+            tests = f"// Auto-generated test placeholder for {language}\n"
     else:
-        tests = "def test_placeholder():\n    assert True\n"
-    
+        tests = f"// Simulated test placeholder for {language}\n"
+
     return {"generated_tests": tests}
 
 def generate_adversarial_tests(state: dict) -> dict:
     logger.info("Agent: Breaker (Adversarial Testing)")
+    language = _detect_language(state.get("file_path", "file.py"))
     if llm:
         prompt = ChatPromptTemplate.from_template(
-            "Write adversarial pytest edge cases (null inputs, massive arrays, wrong types) for:\n{code}\nOnly return the python code."
+            "Write adversarial edge-case tests (null inputs, boundary values, wrong types, massive inputs) for this {language} code:\n{code}\n"
+            "Use the appropriate testing framework for {language}.\n"
+            "Only return the test code."
         )
         chain = prompt | llm
         try:
-            res = chain.invoke({"code": state["code_content"]})
+            res = chain.invoke({"code": state["code_content"], "language": language})
             adv_tests = res.content
         except Exception:
-            adv_tests = "def test_adversarial_placeholder():\n    assert True\n"
+            adv_tests = f"// Adversarial test placeholder for {language}\n"
     else:
-        adv_tests = "def test_adversarial_placeholder():\n    assert True\n"
-    
+        adv_tests = f"// Simulated adversarial test for {language}\n"
+
     return {"adversarial_tests": adv_tests}
 
 def execute_tests(state: dict) -> dict:
