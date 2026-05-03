@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, Cpu, CheckCircle, Bug, Database, GitBranch, Activity, AlertTriangle, Lock } from 'lucide-react';
 import axios from 'axios';
 
@@ -31,6 +31,15 @@ function SeverityBadge({ severity }: { severity: string }) {
   );
 }
 
+const PIPELINE_STEPS = [
+  { name: 'Parser', icon: GitBranch },
+  { name: 'Test Gen', icon: Activity },
+  { name: 'Breaker', icon: ShieldAlert },
+  { name: 'Execute', icon: Cpu },
+  { name: 'Triage', icon: Bug },
+  { name: 'Evaluate', icon: CheckCircle },
+];
+
 function App() {
   const [githubUrl, setGithubUrl] = useState('https://github.com/yaswanth2512/Sentinel-AI');
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
@@ -38,6 +47,9 @@ function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [repoName, setRepoName] = useState('');
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [completedAgents, setCompletedAgents] = useState<string[]>([]);
+  const [activeAgent, setActiveAgent] = useState<string | null>(null);
+  const [currentFile, setCurrentFile] = useState<string>('');
 
   const [showSplash, setShowSplash] = useState(true);
   const [animateSplash, setAnimateSplash] = useState(false);
@@ -64,29 +76,90 @@ function App() {
     setResults([]);
     setErrorMsg('');
     setRepoName('');
+    setCompletedAgents([]);
+    setActiveAgent(null);
+    setCurrentFile('');
+
+    // Extract repo name for display
+    const parts = githubUrl.replace('https://github.com/', '').split('/');
+    if (parts.length >= 2) setRepoName(`${parts[0]}/${parts[1]}`);
+
     try {
-      const resp = await axios.post(`${BACKEND_URL}/api/v1/analyze-repo`, {
-        github_url: githubUrl,
-        max_files: 3,
-      }, { timeout: 120000 });
-      setResults(resp.data.results || []);
-      setRepoName(resp.data.repo || '');
-      setStatus('completed');
+      // Use SSE streaming endpoint via fetch
+      const response = await fetch(`${BACKEND_URL}/api/v1/analyze-repo-stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ github_url: githubUrl, max_files: 1 }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let finalResult: any = null;
+      let buffer = '';
+
+      if (!reader) throw new Error('No response stream');
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            if (event.type === 'file_start') {
+              setCurrentFile(event.file);
+              setCompletedAgents([]);
+              setActiveAgent('Parser');
+            } else if (event.type === 'agent_complete') {
+              setCompletedAgents(prev => [...prev, event.agent]);
+              // Set the NEXT agent as active
+              const currentIdx = PIPELINE_STEPS.findIndex(s => s.name === event.agent);
+              if (currentIdx < PIPELINE_STEPS.length - 1) {
+                setActiveAgent(PIPELINE_STEPS[currentIdx + 1].name);
+              } else {
+                setActiveAgent(null);
+              }
+            } else if (event.type === 'pipeline_complete') {
+              finalResult = event.result;
+            } else if (event.type === 'done') {
+              // All files processed
+            }
+          } catch { /* skip malformed lines */ }
+        }
+      }
+
+      if (finalResult) {
+        setResults([{ file: currentFile || 'analyzed_file.py', result: finalResult }]);
+        setStatus('completed');
+        setActiveAgent(null);
+      } else {
+        setStatus('completed');
+      }
+
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || 'Unknown error';
+      const detail = err?.message || 'Unknown error';
       setErrorMsg(detail);
       setStatus('error');
+      setActiveAgent(null);
     }
   };
 
-  const PIPELINE_STEPS = [
-    { name: 'Parser', icon: GitBranch },
-    { name: 'Test Gen', icon: Activity },
-    { name: 'Breaker', icon: ShieldAlert },
-    { name: 'Execute', icon: Cpu },
-    { name: 'Triage', icon: Bug },
-    { name: 'Evaluate', icon: CheckCircle },
-  ];
+  const getStepState = (stepName: string): 'completed' | 'active' | 'idle' => {
+    if (completedAgents.includes(stepName)) return 'completed';
+    if (activeAgent === stepName) return 'active';
+    return 'idle';
+  };
 
   return (
     <div className="min-h-screen p-6 max-w-7xl mx-auto relative">
@@ -144,7 +217,7 @@ function App() {
               className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 text-white font-medium px-6 py-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap"
             >
               {status === 'running' ? (
-                <><Cpu className="w-5 h-5 animate-pulse" /> Analysing...</>
+                <><Cpu className="w-5 h-5 animate-spin" /> Analysing...</>
               ) : (
                 <><ShieldAlert className="w-5 h-5" /> Run Agents</>
               )}
@@ -158,23 +231,51 @@ function App() {
           )}
         </div>
 
-        {/* Pipeline Progress */}
+        {/* Pipeline Progress — Real-time animated */}
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
-          <h2 className="font-semibold text-slate-300 mb-6">Agent Pipeline</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-semibold text-slate-300">Agent Pipeline</h2>
+            {currentFile && status === 'running' && (
+              <span className="text-xs text-slate-400 font-mono">Analysing: {currentFile}</span>
+            )}
+          </div>
           <div className="relative">
+            {/* Connection line */}
             <div className="absolute top-6 left-0 w-full h-0.5 bg-slate-700 hidden sm:block"></div>
+            {/* Animated progress line */}
+            <div
+              className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-emerald-400 to-cyan-400 hidden sm:block transition-all duration-700 ease-out"
+              style={{
+                width: `${(completedAgents.length / PIPELINE_STEPS.length) * 100}%`,
+              }}
+            ></div>
+
             <div className="flex flex-col sm:flex-row justify-between relative z-10 gap-4 sm:gap-0">
-              {PIPELINE_STEPS.map((step, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500
-                    ${status === 'completed' ? 'bg-emerald-500 border-emerald-400/30 text-white' :
-                      status === 'running' ? 'bg-slate-800 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]' :
-                      'bg-slate-800 border-slate-700 text-slate-500'}`}>
-                    <step.icon className="w-5 h-5" />
+              {PIPELINE_STEPS.map((step, idx) => {
+                const state = getStepState(step.name);
+                return (
+                  <div key={idx} className="flex flex-col items-center gap-2">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500
+                      ${state === 'completed'
+                        ? 'bg-emerald-500 border-emerald-400/30 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                        : state === 'active'
+                        ? 'bg-slate-800 border-amber-500 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.5)] animate-pulse'
+                        : 'bg-slate-800 border-slate-700 text-slate-500'
+                      }`}>
+                      {state === 'completed' ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <step.icon className="w-5 h-5" />
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium transition-colors duration-300 ${
+                      state === 'completed' ? 'text-emerald-400' :
+                      state === 'active' ? 'text-amber-400' :
+                      'text-slate-500'
+                    }`}>{step.name}</span>
                   </div>
-                  <span className={`text-xs font-medium ${status !== 'idle' ? 'text-emerald-400' : 'text-slate-500'}`}>{step.name}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

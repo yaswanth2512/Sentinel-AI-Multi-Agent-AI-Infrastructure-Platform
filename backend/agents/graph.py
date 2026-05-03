@@ -79,3 +79,77 @@ def run_pipeline(code_content: str, file_path: str):
     except Exception as e:
         print(f"Pipeline failed: {e}")
         return {"error": str(e)}
+
+
+# Mapping from LangGraph node names to frontend-friendly agent names
+NODE_DISPLAY_NAMES = {
+    "parse_code": "Parser",
+    "generate_tests": "Test Gen",
+    "generate_adversarial_tests": "Breaker",
+    "execute_tests": "Execute",
+    "triage_failures": "Triage",
+    "security_review": "Security",
+    "evaluate_outputs": "Evaluate",
+    "decide_action": "Decision",
+}
+
+
+def stream_pipeline(code_content: str, file_path: str):
+    """
+    Generator that yields real-time progress events as each LangGraph node completes.
+    Used by the SSE endpoint for live pipeline visualization.
+    """
+    workflow = StateGraph(AgentState)
+
+    workflow.add_node("parse_code", parse_code)
+    workflow.add_node("generate_tests", generate_tests)
+    workflow.add_node("generate_adversarial_tests", generate_adversarial_tests)
+    workflow.add_node("execute_tests", execute_tests)
+    workflow.add_node("triage_failures", triage_failures)
+    workflow.add_node("security_review", security_review)
+    workflow.add_node("evaluate_outputs", evaluate_outputs)
+    workflow.add_node("decide_action", decide_action)
+
+    workflow.add_edge(START, "parse_code")
+    workflow.add_edge("parse_code", "generate_tests")
+    workflow.add_edge("generate_tests", "generate_adversarial_tests")
+    workflow.add_edge("generate_adversarial_tests", "execute_tests")
+    workflow.add_edge("execute_tests", "triage_failures")
+    workflow.add_edge("execute_tests", "security_review")
+    workflow.add_edge("triage_failures", "evaluate_outputs")
+    workflow.add_edge("security_review", "evaluate_outputs")
+    workflow.add_edge("evaluate_outputs", "decide_action")
+    workflow.add_edge("decide_action", END)
+
+    app = workflow.compile()
+
+    state = AgentState(
+        code_content=code_content,
+        file_path=file_path,
+        parsed_ast=None,
+        generated_tests=None,
+        adversarial_tests=None,
+        test_results=None,
+        triage_report=None,
+        evaluation=None,
+        final_decision=None,
+        error=None,
+        retries=0
+    )
+
+    final_state = state
+    for event in app.stream(state):
+        # event is a dict like {"parse_code": {updated state fields}}
+        for node_name, node_output in event.items():
+            display_name = NODE_DISPLAY_NAMES.get(node_name, node_name)
+            final_state = {**final_state, **node_output}
+            yield {
+                "type": "agent_complete",
+                "agent": display_name,
+                "node": node_name,
+            }
+
+    yield {
+        "type": "pipeline_complete",
+        "result": final_state,
+    }
