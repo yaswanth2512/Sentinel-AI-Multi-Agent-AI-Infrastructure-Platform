@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ShieldAlert, Cpu, CheckCircle, Bug, Database, GitBranch, Activity, AlertTriangle, Lock } from 'lucide-react';
 import axios from 'axios';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sentinel-ai-multi-agent-ai-infrastructure-platfo-production.up.railway.app';
 
 interface FileResult {
   file: string;
