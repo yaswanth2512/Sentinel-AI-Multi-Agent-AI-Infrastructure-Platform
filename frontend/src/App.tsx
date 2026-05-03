@@ -34,37 +34,29 @@ function GradeCard({ score }: { score: number }) {
   else if (score >= 5.0) { grade = 'C'; color = 'text-amber-400'; bg = 'bg-amber-500/10'; border = 'border-amber-500/30'; }
 
   return (
-    <div className={`flex flex-col items-center justify-center p-6 rounded-2xl border ${bg} ${border} min-w-[120px] shadow-lg shadow-black/20`}>
-      <span className="text-slate-500 text-[10px] uppercase tracking-[0.2em] mb-2 font-bold">Code Grade</span>
-      <span className={`text-6xl font-black ${color} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>{grade}</span>
+    <div className={`flex flex-col items-center justify-center p-4 rounded-xl border ${bg} ${border} min-w-[100px]`}>
+      <span className="text-slate-500 text-[9px] uppercase tracking-wider mb-1 font-bold">Grade</span>
+      <span className={`text-4xl font-black ${color}`}>{grade}</span>
     </div>
   );
 }
 
 function ScoreGauge({ score }: { score: number }) {
   const percentage = (score / 10) * 100;
-  const radius = 36;
+  const radius = 28;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center w-24 h-24">
+    <div className="relative flex items-center justify-center w-16 h-16">
       <svg className="w-full h-full transform -rotate-90">
+        <circle cx="32" cy="32" r={radius} stroke="currentColor" strokeWidth="6" fill="transparent" className="text-slate-800" />
         <circle
-          cx="48"
-          cy="48"
+          cx="32"
+          cy="32"
           r={radius}
           stroke="currentColor"
-          strokeWidth="8"
-          fill="transparent"
-          className="text-slate-700"
-        />
-        <circle
-          cx="48"
-          cy="48"
-          r={radius}
-          stroke="currentColor"
-          strokeWidth="8"
+          strokeWidth="6"
           fill="transparent"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -72,10 +64,7 @@ function ScoreGauge({ score }: { score: number }) {
           className="text-emerald-400 transition-all duration-1000 ease-out"
         />
       </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className="text-2xl font-bold text-white">{score}</span>
-        <span className="text-[10px] text-slate-500 font-bold uppercase">Score</span>
-      </div>
+      <span className="absolute text-sm font-bold text-white">{score}</span>
     </div>
   );
 }
@@ -85,20 +74,17 @@ function CodeExpander({ title, code, icon: Icon }: { title: string; code: string
   if (!code) return null;
 
   return (
-    <div className="border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 mb-3">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 hover:bg-slate-800 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <Icon className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-semibold text-slate-300">{title}</span>
+    <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30 mb-2">
+      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-3 hover:bg-slate-800 transition-colors">
+        <div className="flex items-center gap-2">
+          <Icon className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="text-xs font-semibold text-slate-300">{title}</span>
         </div>
-        {isOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+        {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
       </button>
       {isOpen && (
-        <div className="p-4 bg-slate-950 border-t border-slate-700">
-          <pre className="text-[11px] font-mono text-emerald-300 overflow-x-auto p-4 bg-black/40 rounded-lg leading-relaxed whitespace-pre-wrap">
+        <div className="p-3 bg-slate-950 border-t border-slate-700">
+          <pre className="text-[10px] font-mono text-emerald-300 overflow-x-auto p-3 bg-black/40 rounded leading-relaxed whitespace-pre-wrap">
             {code}
           </pre>
         </div>
@@ -118,7 +104,7 @@ const PIPELINE_STEPS = [
 ];
 
 function App() {
-  const [githubUrl, setGithubUrl] = useState('https://github.com/yaswanth2512/Sentinel-AI');
+  const [githubUrl, setGithubUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
   const [results, setResults] = useState<FileResult[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
@@ -133,7 +119,6 @@ function App() {
   const currentFileRef = useRef<string>('');
 
   useEffect(() => {
-    // Splash screen timer
     setTimeout(() => setAnimateSplash(true), 1500);
     setTimeout(() => setShowSplash(false), 2500);
 
@@ -149,6 +134,11 @@ function App() {
   }, []);
 
   const runAgents = async () => {
+    if (!githubUrl) {
+      setErrorMsg('Please enter a GitHub repository URL');
+      setStatus('error');
+      return;
+    }
     setStatus('running');
     setResults([]);
     setErrorMsg('');
@@ -209,7 +199,6 @@ function App() {
         setStatus('completed');
       }
     } catch (err: any) {
-      console.error(err);
       setStatus('error');
       setErrorMsg(err.message || 'Pipeline failed');
       setActiveAgent(null);
@@ -217,253 +206,157 @@ function App() {
   };
 
   const copyReport = () => {
-    const report = results.map(r => {
-      const score = r.result.evaluation?.score ?? 0;
-      return `
---- SENTINEL AI ANALYSIS REPORT ---
-File: ${r.file}
-Grade: ${score >= 8.5 ? 'A' : score >= 7 ? 'B' : 'C'}
-Score: ${score}/10
-Confidence: ${((r.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
+    const report = results.map(r => `
+SENTINEL AI REPORT: ${r.file}
+Score: ${r.result.evaluation?.score}/10 | Confidence: ${((r.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
 Decision: ${r.result.final_decision}
 Triage: ${r.result.triage_report?.root_cause}
-Security Risk: ${r.result.security_report?.risk_level}
------------------------------------
-      `;
-    }).join('\n');
+Security: ${r.result.security_report?.top_vulnerability}
+    `).join('\n');
     navigator.clipboard.writeText(report);
-    alert('Report copied to clipboard!');
-  };
-
-  const getStepState = (stepName: string): 'completed' | 'active' | 'idle' => {
-    if (completedAgents.includes(stepName)) return 'completed';
-    if (activeAgent === stepName) return 'active';
-    return 'idle';
+    alert('Report copied!');
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen bg-slate-900 text-slate-200 font-sans p-6">
       
-      {/* Splash Screen */}
       {showSplash && (
-        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-all duration-1000 ease-in-out ${animateSplash ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full animate-pulse"></div>
-            <FlaskConical className="w-24 h-24 text-emerald-400 relative z-10 animate-bounce" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tighter text-white mb-2">SENTINEL AI</h1>
-          <p className="text-slate-400 font-mono tracking-widest text-xs uppercase">Autonomous Quality Infrastructure</p>
+        <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900 transition-all duration-1000 ${animateSplash ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <FlaskConical className="w-16 h-16 text-emerald-400 mb-4 animate-pulse" />
+          <h1 className="text-2xl font-black text-white">SENTINEL AI</h1>
         </div>
       )}
 
-      <div className={`max-w-6xl mx-auto px-6 py-12 transition-all duration-1000 delay-500 ${showSplash && !animateSplash ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+      <div className={`max-w-5xl mx-auto transition-all duration-1000 ${showSplash && !animateSplash ? 'opacity-0' : 'opacity-100'}`}>
         
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+        <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-6">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                <ShieldAlert className="w-6 h-6 text-emerald-400" />
-              </div>
-              <h1 className="text-3xl font-black tracking-tight text-white">Sentinel AI</h1>
-            </div>
-            <p className="text-slate-400 text-sm font-medium">Autonomous Multi-Agent Test & Quality Infrastructure</p>
+            <h1 className="text-2xl font-black text-white flex items-center gap-2">
+              <ShieldAlert className="w-6 h-6 text-emerald-400" />
+              Sentinel AI
+            </h1>
+            <p className="text-slate-500 text-xs uppercase tracking-widest font-bold mt-1">Autonomous Quality Infrastructure</p>
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest px-4 py-2 rounded-full border shadow-lg ${backendOk === true ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400' : backendOk === false ? 'border-red-500/30 bg-red-500/5 text-red-400' : 'border-slate-700 bg-slate-800/50 text-slate-500'}`}>
-              <span className={`w-2 h-2 rounded-full ${backendOk === true ? 'bg-emerald-400 animate-pulse' : backendOk === false ? 'bg-red-400' : 'bg-slate-600'}`}></span>
-              {backendOk === true ? 'Backend Online' : backendOk === false ? 'Backend Offline' : 'Initializing...'}
-            </div>
-            <a href="https://github.com/yaswanth2512/Sentinel-AI" target="_blank" className="p-2 hover:bg-slate-800 rounded-lg transition-colors border border-slate-800">
-              <Globe className="w-5 h-5 text-slate-400" />
-            </a>
+          <div className={`text-[10px] font-bold px-3 py-1 rounded-full border ${backendOk ? 'border-emerald-500/30 text-emerald-400' : 'border-slate-700 text-slate-500'}`}>
+            {backendOk ? 'BACKEND CONNECTED' : 'INITIALIZING'}
           </div>
         </header>
 
-        {/* Input Card */}
-        <section className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl mb-8 backdrop-blur-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <Globe className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-lg font-bold text-white">Analyse Repository</h2>
-          </div>
-          
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-grow">
-              <input
-                type="text"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-                placeholder="https://github.com/user/repo"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-mono text-sm"
-              />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-600 uppercase tracking-widest pointer-events-none">GitHub URL</div>
-            </div>
-            
+        <section className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
+          <p className="text-slate-400 text-sm mb-4">Enter GitHub URL to run the 7-agent pipeline.</p>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/user/repo"
+              className="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+            />
             <button
               onClick={runAgents}
               disabled={status === 'running'}
-              className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 min-w-[200px] ${
-                status === 'running' 
-                  ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
-                  : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 active:scale-95 shadow-emerald-500/20'
-              }`}
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
             >
-              {status === 'running' ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
-                  Analysing...
-                </>
-              ) : (
-                <>
-                  <Activity className="w-4 h-4" />
-                  Run Agents
-                </>
-              )}
+              {status === 'running' ? 'Running...' : 'Run Agents'}
             </button>
           </div>
         </section>
 
-        {/* Pipeline Visualizer */}
-        <section className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 shadow-2xl mb-8">
-          <div className="flex items-center justify-between mb-10">
-            <div className="flex items-center gap-3">
-              <Server className="w-5 h-5 text-cyan-400" />
-              <h2 className="text-lg font-bold text-white">Multi-Agent Pipeline</h2>
-            </div>
-            {status === 'running' && (
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] animate-pulse">Stream Active</span>
-            )}
+        <section className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Agent Pipeline</h2>
+            {status === 'running' && <Activity className="w-4 h-4 text-emerald-400 animate-spin" />}
           </div>
-
-          <div className="relative px-4">
-            {/* Background Path */}
-            <div className="absolute top-[22px] left-8 right-8 h-1 bg-slate-800 rounded-full"></div>
-            
-            {/* Progress Path */}
-            <div 
-              className="absolute top-[22px] left-8 h-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-              style={{ width: `calc(${lineProgress}% - 64px)` }}
-            ></div>
-
-            <div className="relative flex justify-between gap-4">
-              {PIPELINE_STEPS.map((step, idx) => {
-                const state = getStepState(step.name);
-                return (
-                  <div key={idx} className="flex flex-col items-center group relative z-10">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg ${
-                      state === 'completed' ? 'bg-emerald-500 text-slate-950 scale-110' :
-                      state === 'active' ? 'bg-amber-500 text-slate-950 animate-pulse scale-125 shadow-amber-500/30' :
-                      'bg-slate-800 text-slate-500 border border-slate-700'
-                    }`}>
-                      <step.icon className="w-5 h-5" />
-                    </div>
-                    <span className={`mt-4 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      state === 'completed' ? 'text-emerald-400' :
-                      state === 'active' ? 'text-amber-400' :
-                      'text-slate-600'
-                    }`}>{step.name}</span>
+          <div className="flex justify-between relative">
+            <div className="absolute top-5 left-0 w-full h-0.5 bg-slate-700 -z-0"></div>
+            <div className="absolute top-5 left-0 h-0.5 bg-emerald-500 -z-0 transition-all duration-500" style={{ width: `${lineProgress}%` }}></div>
+            {PIPELINE_STEPS.map((step, idx) => {
+              const completed = completedAgents.includes(step.name);
+              const active = activeAgent === step.name;
+              return (
+                <div key={idx} className="flex flex-col items-center z-10">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all ${
+                    completed ? 'bg-emerald-500 border-emerald-500 text-slate-900' :
+                    active ? 'bg-slate-800 border-emerald-400 text-emerald-400 animate-pulse scale-110' :
+                    'bg-slate-800 border-slate-700 text-slate-600'
+                  }`}>
+                    <step.icon className="w-4 h-4" />
                   </div>
-                );
-              })}
-            </div>
+                  <span className={`text-[9px] font-bold uppercase mt-2 ${completed ? 'text-emerald-400' : active ? 'text-emerald-400' : 'text-slate-600'}`}>{step.name}</span>
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* Error Messaging */}
         {status === 'error' && (
-          <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-8 mb-8 flex items-start gap-4">
-            <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="text-red-400 font-black uppercase tracking-widest text-sm mb-2">Pipeline Interrupted</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-4">{errorMsg}</p>
-            </div>
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <p className="text-red-400 text-sm">{errorMsg}</p>
           </div>
         )}
 
-        {/* Results View */}
         {status === 'completed' && results.length > 0 && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-white tracking-tight">
-                Analysis Complete for <span className="text-emerald-400">{repoName}</span>
-              </h2>
-              <button 
-                onClick={copyReport}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                Export Report
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-white">Results for <span className="text-emerald-400">{repoName}</span></h2>
+              <button onClick={copyReport} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                <Copy className="w-3 h-3" /> COPY REPORT
               </button>
             </div>
 
             {results.map((fileResult, i) => (
-              <div key={i} className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-10 shadow-2xl backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-10 opacity-70">
+              <div key={i} className="bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-xl">
+                <div className="flex items-center gap-2 mb-6 border-b border-slate-700 pb-4">
                   <Terminal className="w-4 h-4 text-emerald-400" />
-                  <span className="font-mono text-xs text-slate-400">{fileResult.file}</span>
+                  <span className="text-xs font-mono text-slate-300">{fileResult.file}</span>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-12 mb-12">
+                <div className="flex flex-wrap gap-4 mb-6">
                   <GradeCard score={fileResult.result.evaluation?.score ?? 0} />
-                  
-                  <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 gap-6">
-                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
-                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Confidence</p>
-                      <p className="text-emerald-400 font-black text-3xl">
-                        {((fileResult.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%
-                      </p>
+                  <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                      <p className="text-slate-500 text-[9px] uppercase font-bold mb-1">Confidence</p>
+                      <p className="text-emerald-400 font-bold text-lg">{((fileResult.result.evaluation?.confidence ?? 0) * 100).toFixed(0)}%</p>
                     </div>
-                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center justify-center">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-center">
                       <ScoreGauge score={fileResult.result.evaluation?.score ?? 0} />
                     </div>
-                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
-                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Risk Level</p>
-                      <span className={`text-sm font-black uppercase tracking-widest ${
-                        fileResult.result.security_report?.risk_level === 'high' ? 'text-red-500' :
-                        fileResult.result.security_report?.risk_level === 'medium' ? 'text-amber-500' :
-                        'text-emerald-500'
-                      }`}>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                      <p className="text-slate-500 text-[9px] uppercase font-bold mb-1">Risk</p>
+                      <p className={`text-xs font-bold uppercase ${fileResult.result.security_report?.risk_level === 'high' ? 'text-red-500' : 'text-emerald-500'}`}>
                         {fileResult.result.security_report?.risk_level || 'Low'}
-                      </span>
+                      </p>
                     </div>
-                    <div className="p-6 bg-slate-950/50 rounded-2xl border border-slate-800 flex flex-col justify-center">
-                      <p className="text-slate-600 text-[10px] uppercase tracking-widest mb-2 font-black">Coverage</p>
-                      <p className="text-amber-400 font-black text-3xl">{fileResult.result.test_results?.coverage ?? '85%'}</p>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                      <p className="text-slate-500 text-[9px] uppercase font-bold mb-1">Coverage</p>
+                      <p className="text-amber-400 font-bold text-lg">{fileResult.result.test_results?.coverage || '85%'}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6 mb-10">
-                  <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Bug className="w-4 h-4 text-rose-500" />
-                      <h4 className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Root Cause Analysis</h4>
-                    </div>
-                    <p className="text-slate-400 text-sm leading-relaxed">{fileResult.result.triage_report?.root_cause}</p>
+                <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700">
+                    <h4 className="text-[10px] font-bold text-rose-400 uppercase mb-2">Triage Report</h4>
+                    <p className="text-slate-300 text-xs leading-relaxed">{fileResult.result.triage_report?.root_cause}</p>
                   </div>
-                  <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800">
-                    <div className="flex items-center gap-3 mb-4">
-                      <ShieldAlert className="w-4 h-4 text-amber-500" />
-                      <h4 className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Security Review</h4>
-                    </div>
-                    <p className="text-slate-400 text-sm leading-relaxed">{fileResult.result.security_report?.top_vulnerability}</p>
+                  <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700">
+                    <h4 className="text-[10px] font-bold text-amber-400 uppercase mb-2">Security Review</h4>
+                    <p className="text-slate-300 text-xs leading-relaxed">{fileResult.result.security_report?.top_vulnerability}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="text-[10px] text-slate-600 font-black uppercase tracking-[0.3em] mb-4 ml-1">AI Generated Artifacts</h4>
-                  <CodeExpander title="Functional Unit Tests" code={fileResult.result.generated_tests || ''} icon={Terminal} />
-                  <CodeExpander title="Adversarial Edge-Cases" code={fileResult.result.adversarial_tests || ''} icon={ShieldAlert} />
+                <div className="space-y-2">
+                  <CodeExpander title="Unit Tests" code={fileResult.result.generated_tests || ''} icon={Terminal} />
+                  <CodeExpander title="Adversarial Tests" code={fileResult.result.adversarial_tests || ''} icon={ShieldAlert} />
                 </div>
               </div>
             ))}
           </div>
         )}
         
-        {/* Footer */}
-        <footer className="mt-20 pt-8 border-t border-slate-900 text-center">
-          <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.4em]">Powered by NVIDIA NIM • Qwen3-Coder-480B • Sentinel AI</p>
+        <footer className="mt-12 text-center text-slate-600 text-[9px] font-bold uppercase tracking-widest">
+          Powered by NVIDIA NIM • Qwen3-Coder-480B
         </footer>
       </div>
     </div>
