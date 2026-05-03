@@ -289,11 +289,49 @@ function App() {
           </div>
         </div>
 
-        {/* Error State */}
+        {/* Error State — Informative Messages */}
         {status === 'error' && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-6 text-red-400">
-            <p className="font-semibold mb-1">Pipeline Error</p>
-            <p className="text-sm">{errorMsg}</p>
+          <div className={`rounded-2xl p-6 mb-6 border ${
+            errorMsg.includes('No Python files') 
+              ? 'bg-amber-500/10 border-amber-500/30' 
+              : errorMsg.includes('Could not access')
+              ? 'bg-indigo-500/10 border-indigo-500/30'
+              : 'bg-red-500/10 border-red-500/30'
+          }`}>
+            {errorMsg.includes('No Python files') ? (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <p className="font-semibold text-amber-400">No Analysable Python Files Found</p>
+                </div>
+                <p className="text-slate-300 text-sm mb-3">
+                  The repository was scanned successfully, but it does not contain any standalone <code className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">.py</code> files. 
+                  Sentinel AI currently analyses Python source files only.
+                </p>
+                <p className="text-slate-400 text-xs">
+                  Common reasons: the repo contains only Jupyter Notebooks (<code className="text-slate-300">.ipynb</code>), JavaScript, or data files. 
+                  Try a Python-based repo like <button onClick={() => setGithubUrl('https://github.com/pallets/flask')} className="text-emerald-400 underline hover:text-emerald-300">pallets/flask</button> or <button onClick={() => setGithubUrl('https://github.com/tiangolo/fastapi')} className="text-emerald-400 underline hover:text-emerald-300">tiangolo/fastapi</button>.
+                </p>
+              </>
+            ) : errorMsg.includes('Could not access') ? (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-5 h-5 text-indigo-400" />
+                  <p className="font-semibold text-indigo-400">Repository Not Accessible</p>
+                </div>
+                <p className="text-slate-300 text-sm">
+                  The GitHub repository could not be reached. Make sure the URL is correct and the repository is <strong>public</strong>. Private repositories require a GitHub token.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <ShieldAlert className="w-5 h-5 text-red-400" />
+                  <p className="font-semibold text-red-400">Pipeline Error</p>
+                </div>
+                <p className="text-slate-300 text-sm">{errorMsg}</p>
+              </>
+            )}
           </div>
         )}
 
