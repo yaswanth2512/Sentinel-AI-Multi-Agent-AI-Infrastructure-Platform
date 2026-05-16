@@ -6,7 +6,7 @@ import {
   Terminal, FlaskConical, Globe, Server
 } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://sentinel-agent-production.up.railway.app';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-production-5f3c.up.railway.app';
 
 interface FileResult {
   file: string;
