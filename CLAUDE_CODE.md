@@ -1,4 +1,4 @@
-# 🤖 Built with Claude Code — Development Workflow
+# Built with Claude Code — Development Workflow
 
 > This document captures how **Sentinel AI** was designed, scaffolded, iterated on, and shipped end-to-end using **[Claude Code](https://claude.ai/code)** (Anthropic's agentic coding tool) as the primary development assistant.
 
