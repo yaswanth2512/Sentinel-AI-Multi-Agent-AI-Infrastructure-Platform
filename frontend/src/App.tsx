@@ -139,13 +139,17 @@ function App() {
 
     const checkBackend = async () => {
       try {
-        await axios.get(`${BACKEND_URL}/api/v1/health`);
+        await axios.get(`${BACKEND_URL}/api/v1/health`, { timeout: 10000 });
         setBackendOk(true);
       } catch {
         setBackendOk(false);
       }
     };
+
+    // Check immediately, then poll every 30s so badge auto-recovers
     checkBackend();
+    const interval = setInterval(checkBackend, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const runAgents = async () => {
