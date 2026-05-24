@@ -50,7 +50,7 @@
 
 <hr />
 
-## 🤖 Built End-to-End with Claude Code
+## Built End-to-End with Claude Code
 
 > **This project was designed, scaffolded, implemented, tested, and deployed using [Claude Code](https://claude.ai/code)** — Anthropic's agentic AI coding tool — as the primary development environment.
 
@@ -58,33 +58,33 @@ Claude Code was used across **every layer** of this stack: from generating the L
 
 | What Claude Code built | Details |
 |---|---|
-| 🧠 Multi-agent LangGraph pipeline | 7 agents, typed state machine, Pydantic schemas |
-| ⚡ FastAPI backend + Celery worker | Async task queues, webhook router, MCP server |
-| ⚛️ React dashboard | SSE streaming, score gauges, grade cards, dark theme |
-| 🔁 CI/CD pipeline | 6-stage GitHub Actions: lint → test → SAST → build → Docker → deploy |
-| 🧪 Test suite | pytest fixtures, coverage reports, Redis service containers |
+| Multi-agent LangGraph pipeline | 7 agents, typed state machine, Pydantic schemas |
+| FastAPI backend + Celery worker | Async task queues, webhook router, MCP server |
+| React dashboard | SSE streaming, score gauges, grade cards, dark theme |
+| CI/CD pipeline | 6-stage GitHub Actions: lint → test → SAST → build → Docker → deploy |
+| Test suite | pytest fixtures, coverage reports, Redis service containers |
 
 **→ Full session-by-session breakdown: [CLAUDE_CODE.md](./CLAUDE_CODE.md)**
 
 ---
 
-## 📊 Real-World Adoption & Impact
+## Real-World Adoption & Impact
 
 <div align="center">
 
 | Metric | Value |
 |:---|:---:|
-| 👥 External users (students & developers) who ran the tool | **20+** |
-| 🔁 Pipeline executions across external repositories | **100+** |
-| 🧪 External GitHub codebases analyzed | **5+** |
-| ⭐ GitHub stars from non-collaborators | **8+** |
-| 🎯 Accuracy in detecting failure cases | **88–96%** |
-| ⚡ Reduction in manual debugging effort reported by users | **~30–40%** |
-| 🌐 Production uptime (Railway + Vercel) | **99.2%** |
+| External users (students & developers) who ran the tool | **20+** |
+| Pipeline executions across external repositories | **100+** |
+| External GitHub codebases analyzed | **5+** |
+| GitHub stars from non-collaborators | **8+** |
+| Accuracy in detecting failure cases | **88–96%** |
+| Reduction in manual debugging effort reported by users | **~30–40%** |
+| Production uptime (Railway + Vercel) | **99.2%** |
 
 </div>
 
-### 📣 Adoption Evidence
+### Adoption Evidence
 
 Sentinel AI is a **publicly deployed, externally adopted tool** — not just a prototype:
 
@@ -97,7 +97,7 @@ Sentinel AI is a **publicly deployed, externally adopted tool** — not just a p
 
 ---
 
-## 🔁 CI/CD Pipeline Architecture
+## CI/CD Pipeline Architecture
 
 The project runs a **6-stage automated CI/CD pipeline** via GitHub Actions on every push and pull request.
 
@@ -106,14 +106,14 @@ Push / PR
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Stage 1: 🔍 Backend Lint & Type Check (Ruff + mypy)                    │
+│  Stage 1: Backend Lint & Type Check (Ruff + mypy)                    │
 │  → Enforces PEP8, import ordering, and type safety on every commit      │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
               ┌────────────────┴──────────────────┐
               ▼                                   ▼
 ┌─────────────────────────┐          ┌────────────────────────────────────┐
-│  Stage 2: 🧪 Backend    │          │  Stage 3: 🔐 Security Scan         │
+│  Stage 2: Backend       │          │  Stage 3: Security Scan            │
 │  pytest + Coverage      │          │  Bandit SAST + pip-audit CVE check │
 │  Redis service container│          │  Reports uploaded as artifacts     │
 │  Codecov upload         │          └────────────────────────────────────┘
@@ -121,21 +121,21 @@ Push / PR
               │
               ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Stage 4: ⚛️  Frontend — ESLint + TypeScript + Vite Production Build    │
-│  → Build artifact uploaded to GitHub Actions (7-day retention)         │
+│  Stage 4:     Frontend — ESLint + TypeScript + Vite Production Build    │
+│  → Build artifact uploaded to GitHub Actions (7-day retention)          │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │  (main branch only)
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Stage 5: 🐳 Docker Build & Push to GHCR                                │
-│  → Multi-stage build with Buildx layer caching                         │
-│  → Tagged: latest / sha-<commit> / branch name                         │
+│  Stage 5:  Docker Build & Push to GHCR                                  |
+│  → Multi-stage build with Buildx layer caching                          │
+│  → Tagged: latest / sha-<commit> / branch name                          │
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Stage 6: 🚀 Deploy — Railway (backend) + Vercel (frontend, auto)       │
-│  → GitHub "production" environment gate with URL tracking              │
+│  Stage 6: Deploy — Railway (backend) + Vercel (frontend, auto)          |          
+│  → GitHub "production" environment gate with URL tracking               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
