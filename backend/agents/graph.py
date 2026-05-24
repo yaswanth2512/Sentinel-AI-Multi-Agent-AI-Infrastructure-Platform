@@ -1,8 +1,5 @@
-from typing import TypedDict, List, Dict, Any, Optional
-import operator
-from typing_extensions import Annotated
+from typing import TypedDict, Dict, Any, Optional
 from langgraph.graph import StateGraph, START, END
-from core.schemas import ASTParsingResult, TriageReport, SecurityReport, EvaluationResult
 
 from agents.nodes import (
     parse_code,

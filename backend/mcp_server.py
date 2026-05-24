@@ -1,6 +1,5 @@
 from mcp.server.fastmcp import FastMCP
 from agents.graph import run_pipeline
-import asyncio
 
 # Initialize FastMCP Server
 mcp = FastMCP("SentinelAI")

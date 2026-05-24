@@ -1,18 +1,12 @@
-import ast
-import json
 import structlog
-import requests
 import os
-from dotenv import load_dotenv
-from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 import libcst as cst
 from core.database import get_chroma_client
 from core.evaluation import ScoringFramework
-from core.schemas import TriageReport, SecurityReport, ASTParsingResult
-from core.evaluation import ScoringFramework
+from core.schemas import ASTParsingResult
 
 logger = structlog.get_logger()
 
@@ -243,7 +237,6 @@ def execute_tests(state: dict) -> dict:
             # Code-aware fallback: derive metrics from the parsed AST
             parsed = state.get("parsed_ast", {})
             num_funcs = len(parsed.get("functions", []))
-            loc = parsed.get("loc", 50)
             results = {
                 "passed": max(num_funcs, 2),
                 "failed": 1 if num_funcs > 3 else 0,
@@ -368,19 +361,12 @@ def decide_action(state: dict) -> dict:
         
         # Simulate GitHub API Auto Issue Creation
         github_token = os.getenv("GITHUB_TOKEN")
-        repo_url = os.getenv("GITHUB_REPO", "owner/repo") # e.g. from state
-        
         issue_title = f"[Sentinel AI] Test Failure in {state.get('file_path', 'unknown')}"
-        issue_body = f"**Root Cause**: {triage.get('root_cause', 'Unknown')}\n**Confidence**: {confidence*100}%\n**Severity**: {triage.get('severity', 'unknown')}"
         
         logger.info("GitHub API: Creating Issue", title=issue_title)
         
         if github_token:
             try:
-                headers = {
-                    "Authorization": f"Bearer {github_token}",
-                    "Accept": "application/vnd.github.v3+json"
-                }
                 # Simulate request:
                 # requests.post(f"https://api.github.com/repos/{repo_url}/issues", json={"title": issue_title, "body": issue_body}, headers=headers)
                 logger.info("GitHub Issue created successfully (Simulated)")

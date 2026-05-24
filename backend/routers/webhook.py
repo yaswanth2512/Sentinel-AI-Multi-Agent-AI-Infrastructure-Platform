@@ -1,5 +1,5 @@
 import structlog
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException
 import hmac
 import hashlib
 import os
@@ -45,7 +45,6 @@ async def github_webhook(request: Request):
 
     if event_type == "pull_request" and payload.get("action") in ["opened", "synchronize"]:
         # Extract repository info and trigger analysis
-        repo_url = payload.get("pull_request", {}).get("head", {}).get("repo", {}).get("clone_url", "")
         # In a real scenario, you would fetch the diff or the files from the PR here.
         # For simulation, we pass a dummy code snippet representing the changed file.
         changed_code = "def sample_diff():\n    return 'changed'"
@@ -56,7 +55,6 @@ async def github_webhook(request: Request):
         return {"status": "analyzing PR", "task_id": task.id}
 
     elif event_type == "push":
-        repo_url = payload.get("repository", {}).get("clone_url", "")
         # Simulate taking the last commit changes
         changed_code = "def sample_push():\n    return 'push_change'"
         task = run_pipeline_task.delay(changed_code, "main.py")

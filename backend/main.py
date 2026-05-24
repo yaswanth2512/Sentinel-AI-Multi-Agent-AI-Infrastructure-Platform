@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from prometheus_client import make_asgi_app
@@ -7,12 +7,9 @@ import requests as http_requests
 import os
 import json
 from pydantic import BaseModel
-from typing import Optional
-
 from core.telemetry import setup_telemetry
 from core.database import init_db
 from agents.graph import run_pipeline, stream_pipeline
-from core.celery_app import run_pipeline_task
 from routers.webhook import router as webhook_router
 
 logger = structlog.get_logger()
