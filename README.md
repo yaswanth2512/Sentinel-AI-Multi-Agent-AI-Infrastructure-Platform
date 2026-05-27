@@ -50,13 +50,9 @@
 
 <hr />
 
-## Built End-to-End with Claude Code
 
-> **This project was designed, scaffolded, implemented, tested, and deployed using [Claude Code](https://claude.ai/code)** — Anthropic's agentic AI coding tool — as the primary development environment.
 
-Claude Code was used across **every layer** of this stack: from generating the LangGraph state machine and FastAPI backend, to writing the React SSE streaming frontend, to authoring the CI/CD pipeline and this README.
-
-| What Claude Code built | Details |
+| What was built | Details |
 |---|---|
 | Multi-agent LangGraph pipeline | 7 agents, typed state machine, Pydantic schemas |
 | FastAPI backend + Celery worker | Async task queues, webhook router, MCP server |
@@ -64,7 +60,7 @@ Claude Code was used across **every layer** of this stack: from generating the L
 | CI/CD pipeline | 6-stage GitHub Actions: lint → test → SAST → build → Docker → deploy |
 | Test suite | pytest fixtures, coverage reports, Redis service containers |
 
-**→ Full session-by-session breakdown: [CLAUDE_CODE.md](./CLAUDE_CODE.md)**
+
 
 ---
 
