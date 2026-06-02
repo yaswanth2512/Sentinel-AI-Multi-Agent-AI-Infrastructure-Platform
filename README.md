@@ -42,9 +42,6 @@
     <a href="https://github.com/yaswanth2512/Sentinel-AI">
       <img src="https://img.shields.io/badge/Source%20Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" />
     </a>
-    <a href="./CLAUDE_CODE.md">
-      <img src="https://img.shields.io/badge/Built%20with-Claude%20Code-CC785C?style=for-the-badge&logo=anthropic&logoColor=white" alt="Built with Claude Code" />
-    </a>
   </p>
 </div>
 
