@@ -81,7 +81,6 @@
 
 Sentinel AI is a **publicly deployed, externally adopted tool** — not just a prototype:
 
-- **Live at:** [sentinel-ai-multi-agent-ai-infrastr.vercel.app](https://sentinel-ai-multi-agent-ai-infrastr.vercel.app/) — anyone can paste a GitHub URL and run the full 7-agent pipeline
 - **External users** from university coding communities and Discord developer servers have analyzed their own repositories through the tool
 - **5+ external repos tested**: including student projects, open-source CLI tools, and Django REST APIs — each generating structured triage reports and security scans
 - **Quantified impact**: Users reported a ~30–40% reduction in time spent manually tracing test failures after using Sentinel AI's RAG-powered triage reports
