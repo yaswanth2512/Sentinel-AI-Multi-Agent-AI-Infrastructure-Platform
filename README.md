@@ -2,7 +2,7 @@
 
 <div align="center">
   <p><strong>Autonomous Multi-Agent Test & Quality Infrastructure Platform</strong></p>
-  <p><em>Built end-to-end with Claude Code · Shipped to production · Adopted by external users</em></p>
+  <p><em>Built From Intelligence · Shipped to production · Adopted by external users</em></p>
 
   <p>
     <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
